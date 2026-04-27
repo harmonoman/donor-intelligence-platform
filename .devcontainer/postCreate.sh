@@ -4,4 +4,7 @@ set -euo pipefail
 echo "▶ Installing dependencies..."
 uv sync
 
-echo "✅ Done. Python: $(uv run python --version)"
+echo "▶ Verifying environment..."
+uv run python --version
+
+echo "✅ Environment ready."

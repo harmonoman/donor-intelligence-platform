@@ -7,8 +7,4 @@ services:
       dockerfile: .devcontainer/Dockerfile
     volumes:
       - ..:/workspace:cached
-      - venv:/workspace/.venv
     command: sleep infinity
-
-volumes:
-  venv:
