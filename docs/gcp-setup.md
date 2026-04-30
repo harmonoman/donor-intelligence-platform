@@ -218,3 +218,11 @@ after a break of several days, refresh credentials:
 **`GOOGLE_APPLICATION_CREDENTIALS` pointing at missing file**
 - Comment out or remove `GOOGLE_APPLICATION_CREDENTIALS` from `.env`.
 ADC does not need it.
+
+**`gcloud: command not found` after container restart**
+- The gcloud SDK is installed in a non-standard path due to the install
+method used. Add it to your PATH manually:
+    ```bash
+    export PATH="/workspace/exec -l /bin/sh/google-cloud-sdk/bin:$PATH"
+    ```
+- To make this permanent, add the above line to `~/.bashrc`.
