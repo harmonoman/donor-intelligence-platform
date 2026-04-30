@@ -195,18 +195,26 @@ up a fresh environment must run Steps 2–4 to authenticate.
 
 ## Troubleshooting
 
-**`ModuleNotFoundError: No module named 'pipelines'`** \
-Confirm `pyproject.toml` has `pythonpath = ["."]` under
+**`ModuleNotFoundError: No module named 'pipelines'`** 
+- Confirm `pyproject.toml` has `pythonpath = ["."]` under
 `[tool.pytest.ini_options]`.
 
-**`GCP_PROJECT_ID is not set`** \
-Confirm `.env` exists and contains `GCP_PROJECT_ID=your-project-id`.
+**`GCP_PROJECT_ID is not set`** 
+- Confirm `.env` exists and contains `GCP_PROJECT_ID=your-project-id`.
 
-**`DefaultCredentialsError`** \
-Re-run `gcloud auth application-default login` — ADC credentials
+**`DefaultCredentialsError`** 
+- Re-run `gcloud auth application-default login` — ADC credentials
 may have expired or the `GOOGLE_APPLICATION_CREDENTIALS` env var
 may be pointing at a file that doesn't exist. Comment it out in `.env`.
 
-**`GOOGLE_APPLICATION_CREDENTIALS` pointing at missing file** \
-Comment out or remove `GOOGLE_APPLICATION_CREDENTIALS` from `.env`.
+**ADC Credential Refresh** 
+- ADC credentials expire periodically. If BigQuery connections fail
+after a break of several days, refresh credentials:
+    ```bash
+    gcloud auth application-default login
+    ```
+- Then rerun tests to confirm connectivity is restored.
+
+**`GOOGLE_APPLICATION_CREDENTIALS` pointing at missing file**
+- Comment out or remove `GOOGLE_APPLICATION_CREDENTIALS` from `.env`.
 ADC does not need it.

@@ -222,10 +222,9 @@ in MVP.
 
 ## Open Questions
 
+- **TRANSACTION_DT date parsing:** Confirmed format is `MMDDYYYY`.
+  Staging SQL must use `PARSE_DATE('%m%d%Y', TRANSACTION_DT)` to convert
+  to a standard DATE type. BigQuery does not handle this format natively.
+
 - **TRANSACTION_AMT format:** Confirm whether values are in dollars or
-  cents before writing staging SQL. Script output shows values like
-  `$0`, `$1`, `$2` — likely dollars but verify against a known
-  high-value contribution record in the sample.
-- **TRANSACTION_DT date parsing:** Confirm MMDDYYYY format holds
-  consistently across all 1.98M rows or if other formats appear.
-  Staging transformation must handle this explicitly.
+  cents before writing staging SQL.
