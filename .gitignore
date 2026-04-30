@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# FEC source data — large files ignored
+data/itcont.txt
+data/*.txt
+# Note: fec_sample.csv and indiv_header_file.csv are intentionally committed
+# They are the reproducible sample dataset used by the pipeline
+
+# Credentials
+.secrets/
+
+# Google Cloud Platform (gcloud SDK installed in container)
+exec -l /
+
+# Airflow
+logs/
+airflow.db
+airflow/
