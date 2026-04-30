@@ -208,3 +208,4 @@ __marimo__/
 
 data/itcont.txt
 data/*.txt.secrets/
+exec -l /

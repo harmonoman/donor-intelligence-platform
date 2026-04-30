@@ -7,7 +7,6 @@ Run after setup_bigquery.py has been executed:
     uv run pytest tests/integration/test_bigquery_connection.py -v
 """
 
-import os
 import pytest
 from google.cloud import bigquery
 from pipelines.utils.env import get_required_env
