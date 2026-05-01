@@ -220,6 +220,66 @@ in MVP.
 
 ---
 
+## Column Mapping — FEC to Pipeline
+
+This table maps actual FEC column names to their semantic meaning
+in the pipeline. Renaming happens in the staging layer — the raw
+layer uses FEC names exactly.
+
+| FEC Column | Type | Semantic Meaning | MVP Usage |
+|---|---|---|---|
+| CMTE_ID | STRING | Committee receiving contribution | Context only |
+| AMNDT_IND | STRING | Amendment indicator (N/A/T) | Not used in MVP |
+| RPT_TP | STRING | Report type | Not used in MVP |
+| TRANSACTION_PGI | STRING | Primary/general indicator | Not used in MVP |
+| IMAGE_NUM | STRING | FEC filing image reference | Not used in MVP |
+| TRANSACTION_TP | STRING | Transaction type code | Not used in MVP |
+| ENTITY_TP | STRING | Entity type (IND = individual) | Filter reference |
+| NAME | STRING | Donor full name (Last, First) | Identity resolution |
+| CITY | STRING | Donor city | Address matching |
+| STATE | STRING | Donor state (2-char) | Address matching |
+| ZIP_CODE | STRING | Donor ZIP (may include ZIP+4) | Identity Rule 1 |
+| EMPLOYER | STRING | Donor employer | Stored, not matched |
+| OCCUPATION | STRING | Donor occupation | Stored, not matched |
+| TRANSACTION_DT | STRING | Contribution date (MMDDYYYY) | Mart metrics |
+| TRANSACTION_AMT | NUMERIC | Contribution amount (dollars) | Mart metrics |
+| OTHER_ID | STRING | Other ID (37.2% null) | Not used in MVP |
+| TRAN_ID | STRING | FEC transaction ID | Reference only |
+| FILE_NUM | STRING | FEC file number | Reference only |
+| MEMO_CD | STRING | Memo code (99.3% null) | Not used in MVP |
+| MEMO_TEXT | STRING | Memo text (48.8% null) | Not used in MVP |
+| SUB_ID | STRING | Submission ID — primary MERGE key | MERGE key |
+| _load_date | DATE | Pipeline load date (added by us) | Partitioning |
+
+---
+
+## Staging Prerequisites
+
+These are known data characteristics that MUST be handled in staging
+transformations. Documented here to prevent silent errors downstream.
+
+### ZIP_CODE Cleaning Required
+FEC ZIP codes frequently appear in non-standard formats:
+- `302011234` — ZIP+4 without hyphen
+- `3021` — truncated ZIP
+- `30201-1234` — ZIP+4 with hyphen
+
+Staging must strip to 5-digit ZIP before identity resolution Rule 1
+(name + ZIP) can match reliably. Use: `LEFT(ZIP_CODE, 5)`
+
+### ENTITY_TP Filter Required
+FEC individual contribution files contain records for multiple entity types:
+- `IND` — individual donor (target for this pipeline)
+- `ORG` — organization
+- `CAN` — candidate
+- `COM` — committee
+
+Staging must filter to `ENTITY_TP = 'IND'` before building
+`stg_contributions`. Failure to filter will introduce non-individual
+records into identity resolution and the mart.
+
+---
+
 ## Open Questions
 
 - **TRANSACTION_DT date parsing:** Confirmed format is `MMDDYYYY`.
