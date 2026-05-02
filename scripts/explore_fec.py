@@ -13,12 +13,11 @@ Usage:
         --rows 50000
 """
 
+import argparse
 import csv
 import hashlib
-import argparse
-from pathlib import Path
 from collections import Counter
-
+from pathlib import Path
 
 DELIMITER = "|"
 ENCODING = "latin-1"
@@ -80,7 +79,7 @@ def explore(input_path: Path, header_path: Path, sample_rows: int):
         headers = [col.strip() for col in next(reader)]
 
     print(f"Headers loaded from : {header_path}")
-    print(f"Delimiter           : pipe (|) confirmed")
+    print("Delimiter           : pipe (|) confirmed")
     print(f"Column count        : {len(headers)}")
     print("\nColumns:\n")
     for i, col in enumerate(headers):
