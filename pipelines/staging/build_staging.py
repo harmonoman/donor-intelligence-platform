@@ -216,7 +216,7 @@ def merge_into_staging(
         return 0
 
     # Write to a temporary table first
-    temp_table_id = f"{project_id}.staging.stg_contributions_temp"
+    temp_table_id = f"{project_id}.staging._stg_contributions_temp"
 
     # Explicit schema prevents autodetect type mismatches
     # contribution_amount must be NUMERIC (not FLOAT64)
