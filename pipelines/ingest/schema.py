@@ -14,7 +14,7 @@ store data exactly as it came in, with no transformation.
 Reference:
     FEC data dictionary:
     https://www.fec.gov/campaign-finance-data/contributions-individuals-file-description/
-    
+
     Column names sourced from:
     data/indiv_header_file.csv (committed to repo)
 """

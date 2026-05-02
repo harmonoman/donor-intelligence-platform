@@ -9,8 +9,8 @@ Run after setup_bigquery.py has been executed:
 
 import pytest
 from google.cloud import bigquery
-from pipelines.utils.env import get_required_env
 
+from pipelines.utils.env import get_required_env
 
 # ---------------------------------------------------------------------------
 # Fixtures

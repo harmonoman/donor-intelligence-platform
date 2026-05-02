@@ -278,6 +278,11 @@ Staging must filter to `ENTITY_TP = 'IND'` before building
 `stg_contributions`. Failure to filter will introduce non-individual
 records into identity resolution and the mart.
 
+### TRANSACTION_AMT Null Safety
+Verified against full 50k sample: `TRANSACTION_AMT` has zero empty values.
+BigQuery NUMERIC cast from STRING will not fail on this dataset.
+Command used: `awk -F'|' '$15==""' data/fec_sample.csv | wc -l` → 0
+
 ---
 
 ## Open Questions

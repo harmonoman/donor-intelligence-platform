@@ -12,9 +12,9 @@ Usage:
 
 import os
 from pathlib import Path
-from google.cloud import bigquery
-from google.api_core.exceptions import Conflict
 
+from google.api_core.exceptions import Conflict
+from google.cloud import bigquery
 
 # ---------------------------------------------------------------------------
 # Configuration
