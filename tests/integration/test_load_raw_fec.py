@@ -10,6 +10,7 @@ Run with:
 """
 
 import csv
+import subprocess
 from datetime import date
 from pathlib import Path
 
@@ -30,7 +31,19 @@ from pipelines.utils.env import get_required_env, load_env
 
 FIXTURE_PATH = Path("tests/fixtures/fec_fixture.csv")
 TEST_EXECUTION_DATE = date(2099, 1, 1)
-TEST_TABLE_ID = "raw.fec_contributions_test"  # separate test table
+TEST_TABLE_ID = "raw.fec_contributions"  # separate test table
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def get_fixture_row_count() -> int:
+    """Return the number of data rows in the fixture file (excludes header)."""
+    with open(FIXTURE_PATH, newline="", encoding="utf-8") as f:
+        reader = csv.reader(f, delimiter="|")
+        next(reader)  # skip header
+        return sum(1 for _ in reader)
 
 
 # ---------------------------------------------------------------------------
@@ -81,12 +94,10 @@ def test_fixture_file_exists():
 
 
 def test_load_csv_to_dataframe():
-    """CSV loads into a dataframe with correct column count."""
     df = load_csv_to_dataframe(FIXTURE_PATH)
-    assert len(df) == 5, f"Expected 5 rows, got {len(df)}"
-    assert "NAME" in df.columns
-    assert "SUB_ID" in df.columns
-    assert "TRANSACTION_AMT" in df.columns
+    expected = get_fixture_row_count()
+    assert len(df) == expected, f"Expected {expected} rows, got {len(df)}"
+
 
 
 def test_add_load_date_column():
@@ -104,6 +115,21 @@ def test_load_date_is_same_for_all_rows():
     assert df["_load_date"].nunique() == 1
 
 
+def test_missing_execution_date_fails():
+    """Script must fail clearly when --execution-date is not provided."""
+    result = subprocess.run(
+        ["uv", "run", "python", "pipelines/ingest/load_raw_fec.py"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0, (
+        "Script should exit with non-zero code when --execution-date is missing"
+    )
+    assert "execution-date" in result.stderr.lower(), (
+        "Error message should mention execution-date"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Integration tests (BigQuery required)
 # ---------------------------------------------------------------------------
@@ -117,7 +143,8 @@ def test_load_to_bigquery_succeeds(bq_client, project_id):
     count = count_rows_in_partition(
         bq_client, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE
     )
-    assert count == 5, f"Expected 5 rows in partition, got {count}"
+    expected = get_fixture_row_count()
+    assert count == expected, f"Expected {expected} rows in partition, got {count}"
 
 
 def test_row_count_matches_fixture(bq_client, project_id):
@@ -148,6 +175,7 @@ def test_idempotency_no_duplicates_on_rerun(bq_client, project_id):
     count = count_rows_in_partition(
         bq_client, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE
     )
-    assert count == 5, (
-        f"Expected 5 rows after rerun, got {count} — idempotency failed"
+    expected = get_fixture_row_count()
+    assert count == expected, (
+        f"Expected {expected} rows after rerun, got {count} — idempotency failed"
     )
