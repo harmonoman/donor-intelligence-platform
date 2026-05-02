@@ -29,3 +29,4 @@ USER $USERNAME
 ENV UV_PROJECT_ENVIRONMENT=/workspace/.venv
 ENV VIRTUAL_ENV=/workspace/.venv
 ENV PATH="/workspace/.venv/bin:$PATH"
+ENV PYTHONPATH=/workspace

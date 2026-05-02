@@ -28,6 +28,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
+from google.api_core.exceptions import Conflict
 from google.cloud import bigquery
 
 from pipelines.ingest.schema import RAW_FEC_SCHEMA
@@ -170,7 +171,7 @@ def ensure_table_exists(
     try:
         client.create_table(table)
         print(f"  Created table: {full_table_id}")
-    except Exception:
+    except Conflict:
         pass  # table already exists — continue
 
 
