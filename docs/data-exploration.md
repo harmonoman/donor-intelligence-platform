@@ -267,6 +267,14 @@ FEC ZIP codes frequently appear in non-standard formats:
 Staging must strip to 5-digit ZIP before identity resolution Rule 1
 (name + ZIP) can match reliably. Use: `LEFT(ZIP_CODE, 5)`
 
+### ZIP Null Rate in Staging
+
+Verified against 49,981 staged records:
+- Records with empty zip_normalized: 26 (0.05%)
+- These records will fall through Rule 1 (name + ZIP) to Rule 2 (name + full address)
+- Impact on identity resolution: negligible
+- No action required
+
 ### ENTITY_TP Filter Required
 FEC individual contribution files contain records for multiple entity types:
 - `IND` — individual donor (target for this pipeline)
