@@ -43,28 +43,34 @@ This is the maximum address specificity available in the source data.
 Street-level address abbreviation testing (St vs Street) is not
 applicable to this dataset.
 
+### Rule 2 False Merge Risk
+
+Rule 2 matches on `donor_name_normalized + donor_address_normalized`
+where `donor_address_normalized` is only `city + state`. This means
+two genuinely different donors with the same name in the same city
+will be merged if either record has no ZIP.
+
+Example: Two different people named "JONES MARY" in "boston ma" —
+one with ZIP, one without — will share a donor_id if the no-ZIP
+record triggers Rule 2 and finds the ZIP record via name+address.
+
+This is a known limitation of the available FEC address data.
+Street-level address data is not available to disambiguate.
+Flagging and resolution is deferred to post-MVP.
+
 ---
 
 ## Processing Mode
 
-Identity resolution in this pipeline is **incremental** — records are
-processed one at a time against the current state of `dim_donors`.
+Identity resolution in this pipeline is **batch** — all records for a
+given execution date are processed simultaneously in a single SQL query.
 
-This means:
-- Each record is evaluated against whatever already exists in `dim_donors`
-- The order records are processed affects collision detection
-- Earlier records establish the baseline that later records match against
+Rule 1 and Rule 2 are evaluated in parallel passes (CTEs), then combined
+via UNION ALL. Collision detection in Ticket 4.3 will operate within
+this same batch context.
 
-This is distinct from **batch mode** where all records are evaluated
-simultaneously against each other.
-
-For the fixture scenarios, processing order is:
-1. All Rule 1 match records (R001-R006)
-2. No match records (R007-R012, R020, R023)
-3. Collision records (R013-R016)
-4. Multi-match records (R017-R019)
-
-Within each scenario, records are processed in record_id order (R001 before R002, etc.)
+This means processing order within a batch does not affect Rule 1 or
+Rule 2 matching — all records see the same source data simultaneously.
 
 ---
 
@@ -252,6 +258,39 @@ Identity resolution is incremental. Each record is evaluated against
 the current state of `dim_donors` at the time of processing.
 The order records are processed affects collision detection.
 
+> **Note:** Collision detection for Scenarios 4 and 5 is implemented
+> in Ticket 4.3. The step-by-step walkthrough above describes the
+> intended logical behavior — actual implementation details will be
+> documented in Ticket 4.3.
+
+---
+
+## Scenario 6 — Rule 2 Multi-ZIP Lookup (MIN Behavior)
+
+**Records:** R024, R025, R026
+
+**Description:**
+R024 and R025 are two Rule 1 records sharing the same name and city
+but with different ZIP codes. R026 has no ZIP — Rule 1 cannot fire.
+Rule 2 joins on name + address and finds BOTH R024 and R025.
+
+`MIN(canonical_key)` selects the lexicographically smallest key:
+- `"chen robert|zip:02138"` < `"chen robert|zip:02139"`
+- R026 inherits R024's canonical key → same donor_id as R024
+
+**Expected behavior:**
+- R024: new donor_id via Rule 1 (e.g., MD5("chen robert|zip:02138"))
+- R025: new donor_id via Rule 1 (e.g., MD5("chen robert|zip:02139"))
+- R026: resolves to R024's donor_id via Rule 2 MIN
+
+**Why MIN is acceptable for MVP:**
+The selection is deterministic — same input always produces same output.
+The semantic question of which ZIP is "correct" for R026 is deferred
+to post-MVP fuzzy matching with confidence scoring.
+
+**Note:** This behavior is confirmed to occur in real FEC data.
+Example: `goldberg paul` in `needham ma` has ZIPs `02149` and `02492`.
+
 ---
 
 ## Summary Table
@@ -271,6 +310,9 @@ The order records are processed affects collision detection.
 | R018 | Rule 2 multi-match — processed second | Collision with R017 | ✅ | ✅ |
 | R019 | Rule 2 multi-match — processed third | Multi-match via Rule 2 | ✅ | ✅ |
 | R023 | No match (null ZIP + null address) | New donor_id | ✅ | ❌ |
+| R024 | Rule 2 multi-ZIP — Rule 1 record (ZIP 02138) | New donor_id | ✅ | ❌ |
+| R025 | Rule 2 multi-ZIP — Rule 1 record (ZIP 02139) | New donor_id | ✅ | ❌ |
+| R026 | Rule 2 multi-ZIP — inherits R024 via MIN | Same donor_id as R024 | ✅ | ❌ |
 
 ---
 
@@ -296,3 +338,20 @@ The order records are processed affects collision detection.
    the same single-word name in the same ZIP. This edge case is
    intentionally deferred to post-MVP fuzzy matching enhancements.
    No fixture record covers this scenario.
+
+6. **Run this spot-check after each real data run** to verify
+   match_rule distribution looks reasonable:
+
+```sql
+   SELECT
+       match_rule,
+       COUNT(*) as cnt,
+       ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as pct
+   FROM `project-a10238bd-a355-474b-b6a.core.dim_donors`
+   WHERE _load_date = DATE('2025-01-01')
+   GROUP BY match_rule
+   ORDER BY cnt DESC
+```
+
+   Expected: rule1 should account for the vast majority of records.
+   A high no_match rate indicates a normalization or data quality issue.

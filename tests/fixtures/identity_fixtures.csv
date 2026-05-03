@@ -4,7 +4,7 @@ R002,Smith John,smith john,ATLANTA,GA,30301,30301,atlanta ga,250,2025-02-20,rule
 R003,JONES MARY A.,jones mary a,BOSTON,MA,02101,02101,boston ma,500,2025-01-10,rule1_exact_match,match_existing
 R004,jones mary a,jones mary a,BOSTON,MA,02101,02101,boston ma,75,2025-03-05,rule1_exact_match,match_existing
 R005,O'BRIEN PATRICK,obrien patrick,CHICAGO,IL,60601,60601,chicago il,200,2025-01-20,rule2_address_match,match_existing
-R006,OBRIEN PATRICK,obrien patrick,CHICAGO,IL,,60601,chicago il,200,2025-01-20,rule2_address_match,match_existing
+R006,OBRIEN PATRICK,obrien patrick,CHICAGO,IL,,,chicago il,200,2025-01-20,rule2_address_match,match_existing
 R007,DAVIS CAROL MS.,davis carol ms,SEATTLE,WA,98101,98101,seattle wa,150,2025-02-01,no_match_new_donor,new_donor_id
 R008,Davis Carol,davis carol,SEATTLE,WA,,,seattle wa,150,2025-02-01,no_match_new_donor,new_donor_id
 R009,JOHNSON ROBERT,johnson robert,DENVER,CO,80201,80201,denver co,300,2025-01-05,no_match_new_donor,new_donor_id
@@ -22,3 +22,6 @@ R020,ANDERSON PATRICIA,anderson patricia,SAN FRANCISCO,CA,94101,94101,san franci
 R021,HARRIS JANET P,harris janet p,NEW YORK,NY,10001,10001,new york ny,500,2025-03-13,rule1_exact_match,match_existing
 R022,HARRIS JANET P.,harris janet p,NEW YORK,NY,10001,10001,new york ny,500,2025-03-13,rule1_exact_match,match_existing
 R023,PATEL ANITA,patel anita,,,,,,,2025-01-10,no_match_null_address,new_donor_id
+R024,CHEN ROBERT,chen robert,CAMBRIDGE,MA,02138,02138,cambridge ma,100,2025-01-15,rule2_multi_zip_lookup,match_existing
+R025,CHEN ROBERT,chen robert,CAMBRIDGE,MA,02139,02139,cambridge ma,150,2025-02-01,rule2_multi_zip_lookup,match_existing
+R026,CHEN ROBERT,chen robert,CAMBRIDGE,MA,,,cambridge ma,200,2025-03-01,rule2_multi_zip_lookup,match_existing
