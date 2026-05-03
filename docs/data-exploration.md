@@ -291,6 +291,24 @@ Verified against full 50k sample: `TRANSACTION_AMT` has zero empty values.
 BigQuery NUMERIC cast from STRING will not fail on this dataset.
 Command used: `awk -F'|' '$15==""' data/fec_sample.csv | wc -l` → 0
 
+### Address Field Limitation
+
+The FEC individual contributions file contains no street-level address data.
+Available address fields are limited to:
+- `CITY`
+- `STATE`
+- `ZIP_CODE`
+
+"Full address" in this pipeline is therefore defined as:
+
+    donor_address_normalized = normalize_address(CITY + " " + STATE)
+
+Example: `"ATLANTA"` + `"GA"` → `"atlanta ga"`
+
+This is the maximum address specificity available in the source data.
+Identity resolution Rule 2 matches on normalized name + city + state.
+Street-level matching is not possible with this dataset.
+
 ---
 
 ## Open Questions

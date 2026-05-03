@@ -1,0 +1,24 @@
+record_id,donor_name,donor_name_normalized,city,state,zip_code,zip_normalized,donor_address_normalized,contribution_amount,contribution_date,scenario_label,expected_outcome
+R001,SMITH JOHN,smith john,ATLANTA,GA,30301,30301,atlanta ga,100,2025-01-15,rule1_exact_match,match_existing
+R002,Smith John,smith john,ATLANTA,GA,30301,30301,atlanta ga,250,2025-02-20,rule1_exact_match,match_existing
+R003,JONES MARY A.,jones mary a,BOSTON,MA,02101,02101,boston ma,500,2025-01-10,rule1_exact_match,match_existing
+R004,jones mary a,jones mary a,BOSTON,MA,02101,02101,boston ma,75,2025-03-05,rule1_exact_match,match_existing
+R005,O'BRIEN PATRICK,obrien patrick,CHICAGO,IL,60601,60601,chicago il,200,2025-01-20,rule2_address_match,match_existing
+R006,OBRIEN PATRICK,obrien patrick,CHICAGO,IL,,60601,chicago il,200,2025-01-20,rule2_address_match,match_existing
+R007,DAVIS CAROL MS.,davis carol ms,SEATTLE,WA,98101,98101,seattle wa,150,2025-02-01,no_match_new_donor,new_donor_id
+R008,Davis Carol,davis carol,SEATTLE,WA,,,seattle wa,150,2025-02-01,no_match_new_donor,new_donor_id
+R009,JOHNSON ROBERT,johnson robert,DENVER,CO,80201,80201,denver co,300,2025-01-05,no_match_new_donor,new_donor_id
+R010,WILLIAMS SARAH,williams sarah,MIAMI,FL,33101,33101,miami fl,125,2025-02-14,no_match_new_donor,new_donor_id
+R011,BROWN MICHAEL,brown michael,PHOENIX,AZ,85001,85001,phoenix az,450,2025-03-10,no_match_new_donor,new_donor_id
+R012,GARCIA LINDA,garcia linda,DALLAS,TX,75201,75201,dallas tx,225,2025-01-30,no_match_new_donor,new_donor_id
+R013,SMITH JAMES,smith james,PORTLAND,OR,97201,97201,portland or,100,2025-01-12,collision_same_name_zip,conflict_separate_records
+R014,SMITH JAMES,smith james,PORTLAND,OR,97201,97201,portland or,100,2025-01-12,collision_same_name_zip,conflict_separate_records
+R015,LEE JENNIFER,lee jennifer,AUSTIN,TX,78701,78701,austin tx,175,2025-02-08,collision_same_name_zip,conflict_separate_records
+R016,LEE JENNIFER,lee jennifer,AUSTIN,TX,78701,78701,austin tx,175,2025-02-08,collision_same_name_zip,conflict_separate_records
+R017,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37201,37201,nashville tn,350,2025-01-25,rule2_multi_match_collision,conflict_unresolved
+R018,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37201,37201,nashville tn,350,2025-01-25,rule2_multi_match_collision,conflict_unresolved
+R019,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37202,37202,nashville tn,350,2025-01-25,rule2_multi_match_collision,conflict_unresolved
+R020,ANDERSON PATRICIA,anderson patricia,SAN FRANCISCO,CA,94101,94101,san francisco ca,600,2025-03-20,no_match_new_donor,new_donor_id
+R021,HARRIS JANET P,harris janet p,NEW YORK,NY,10001,10001,new york ny,500,2025-03-13,rule1_exact_match,match_existing
+R022,HARRIS JANET P.,harris janet p,NEW YORK,NY,10001,10001,new york ny,500,2025-03-13,rule1_exact_match,match_existing
+R023,PATEL ANITA,patel anita,,,,,,,2025-01-10,no_match_null_address,new_donor_id
