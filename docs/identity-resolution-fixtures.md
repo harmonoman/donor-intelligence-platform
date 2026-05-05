@@ -26,7 +26,9 @@ Identity resolution applies two deterministic rules in order:
 **Rule 2:** Exact match on `donor_name_normalized` + `donor_address_normalized`
 
 If no match → new `donor_id` created
-If collision → `identity_conflict = TRUE`, record in `dim_donors_unresolved`
+If same canonical key → same `donor_id` (same donor assumed)
+`identity_conflict` is always `FALSE` in current implementation
+`dim_donors_unresolved` is reserved for post-MVP collision handling
 
 ## Address Data Limitation
 
@@ -62,15 +64,14 @@ Flagging and resolution is deferred to post-MVP.
 
 ## Processing Mode
 
-Identity resolution in this pipeline is **batch** — all records for a
-given execution date are processed simultaneously in a single SQL query.
+**Matching: Batch** — all records for a given execution date are
+processed simultaneously in a single SQL query. Processing order
+within a batch does not affect outcomes.
 
-Rule 1 and Rule 2 are evaluated in parallel passes (CTEs), then combined
-via UNION ALL. Collision detection in Ticket 4.3 will operate within
-this same batch context.
-
-This means processing order within a batch does not affect Rule 1 or
-Rule 2 matching — all records see the same source data simultaneously.
+**Loading: Incremental** — results are MERGEd into `dim_donors`
+on `sub_id`. Each execution date adds or updates records without
+rebuilding the full table. Running the same date twice produces
+identical results.
 
 ---
 
@@ -177,91 +178,55 @@ default behavior — never assume a match without supporting evidence.
 
 ---
 
-## Scenario 4 — Collision (Same Name + ZIP, Different People)
+## Scenario 4 — Same Name + ZIP (Resolved as Same Donor)
 
 **Records:** R013, R014, R015, R016
 
 **Description:**
-Two genuinely different donors share identical normalized names
-and ZIP codes. The system cannot determine which is which — this
-is a true collision. The system must NOT silently merge them.
+These records share identical normalized names and ZIP codes and resolve
+to the same donor_id. In a deterministic batch hash system, same
+canonical key always means same donor — the system cannot distinguish
+"same person, two contributions" from "two different people with
+identical name and ZIP" without additional disambiguating data.
 
 | Records | Normalized Name | ZIP | Expected |
 |---|---|---|---|
-| R013, R014 | `smith james` | `97201` | Conflict — separate records |
-| R015, R016 | `lee jennifer` | `78701` | Conflict — separate records |
-
-**Why this is a collision:**
-Both R013 and R014 have identical `donor_name_normalized` and
-`zip_normalized`. In reality, these could be two different people
-named James Smith who live in the same ZIP code, or one donor
-with two contributions. The system cannot know.
+| R013, R014 | `smith james` | `97201` | Same donor_id |
+| R015, R016 | `lee jennifer` | `78701` | Same donor_id |
 
 **Expected behavior:**
-- Both records receive SEPARATE `donor_id` values
-- `identity_conflict = TRUE` on both records
-- Both records appear in `dim_donors`
-- Both records appear in `dim_donors_unresolved` for review
+- R013 and R014 resolve to the same donor_id
+- R015 and R016 resolve to the same donor_id
+- `identity_conflict = FALSE` for all
+- All records appear in `dim_donors` only
 
-**Critical:** The system must NEVER silently merge these.
-Silent merging would combine two donors' histories
-and corrupt downstream analytics.
+**Known limitation:**
+True collision detection (flagging genuinely different people who share
+a name and ZIP) requires incremental matching against a known-good
+donor registry, or additional disambiguating fields not present in
+this dataset. Deferred to post-MVP.
 
 ---
 
-## Scenario 5 — Rule 2 Multi-Match Collision
+## Scenario 5 — Same Name, Different ZIP (Separate Donors)
 
 **Records:** R017, R018, R019
 
-**Processing Order (Critical):**
-Records must be processed in this exact sequence:
-1. R017 processed first
-2. R018 processed second
-3. R019 processed third
+**Description:**
+R017 and R018 share the same name and ZIP (`37201`) — they resolve to
+the same donor_id. R019 has the same name but a different ZIP (`37202`)
+— it gets a separate donor_id.
 
-This order matters because collision detection is incremental —
-each record is evaluated against the current state of `dim_donors`.
-
-**Step-by-step walkthrough:**
-
-**Step 1 — R017 processed:**
-- Rule 1: no existing donor with `"taylor william"` + `"37201"` → no match
-- Rule 2: no existing donor with `"taylor william"` + `"nashville tn"` → no match
-- Result: new `donor_id` created (e.g., D017)
-- R017 inserted into `dim_donors`, `identity_conflict = FALSE`
-
-**Step 2 — R018 processed:**
-- Rule 1: finds R017 (`"taylor william"` + `"37201"`) → match found
-- But R017 and R018 have identical SUB_IDs? No — they are different
-  contributions from potentially different people
-- Multiple records match Rule 1 → collision detected
-- Result: both R017 and R018 flagged with `identity_conflict = TRUE`
-- Both routed to `dim_donors_unresolved`
-
-**Step 3 — R019 processed:**
-- Rule 1: `"taylor william"` + `"37202"` → no match (ZIP differs)
-- Rule 2: `"taylor william"` + `"nashville tn"` → finds MULTIPLE
-  existing donors (R017 and R018 both have `"nashville tn"`)
-- Multiple Rule 2 matches → collision
-- Result: R019 flagged with `identity_conflict = TRUE`
-- R019 routed to `dim_donors_unresolved`
+| Records | Normalized Name | ZIP | Expected |
+|---|---|---|---|
+| R017, R018 | `taylor william` | `37201` | Same donor_id |
+| R019 | `taylor william` | `37202` | New donor_id |
 
 **Expected behavior:**
-- R017: inserted into `dim_donors`, initially `identity_conflict = FALSE`,
-  updated to `TRUE` when R018 creates collision
-- R018: inserted into `dim_donors` with `identity_conflict = TRUE`
-- R019: inserted into `dim_donors` with `identity_conflict = TRUE`
-- All three appear in `dim_donors_unresolved`
-
-**Key principle:**
-Identity resolution is incremental. Each record is evaluated against
-the current state of `dim_donors` at the time of processing.
-The order records are processed affects collision detection.
-
-> **Note:** Collision detection for Scenarios 4 and 5 is implemented
-> in Ticket 4.3. The step-by-step walkthrough above describes the
-> intended logical behavior — actual implementation details will be
-> documented in Ticket 4.3.
+- R017 and R018 resolve to the same donor_id via Rule 1
+- R019 gets a new donor_id (different ZIP = different canonical key)
+- `identity_conflict = FALSE` for all
+- All records appear in `dim_donors` only
 
 ---
 
@@ -304,11 +269,10 @@ Example: `goldberg paul` in `needham ma` has ZIPs `02149` and `02492`.
 | R007 | No match (name suffix differs) | New donor_id | ✅ | ❌ |
 | R008 | No match (no ZIP, name mismatch) | New donor_id | ✅ | ❌ |
 | R009-R012, R020 | No match | New donor_id each | ✅ | ❌ |
-| R013, R014 | Collision | Separate + conflict | ✅ | ✅ |
-| R015, R016 | Collision | Separate + conflict | ✅ | ✅ |
-| R017 | Rule 2 multi-match — processed first | New donor_id → conflict on R018 | ✅ | ✅ |
-| R018 | Rule 2 multi-match — processed second | Collision with R017 | ✅ | ✅ |
-| R019 | Rule 2 multi-match — processed third | Multi-match via Rule 2 | ✅ | ✅ |
+| R013, R014 | Rule 1 match (same name+ZIP) | Same donor_id | ✅ | ❌ |
+| R015, R016 | Rule 1 match (same name+ZIP) | Same donor_id | ✅ | ❌ |
+| R017, R018 | Rule 1 match (same name+ZIP) | Same donor_id | ✅ | ❌ |
+| R019 | No match (different ZIP) | New donor_id | ✅ | ❌ |
 | R023 | No match (null ZIP + null address) | New donor_id | ✅ | ❌ |
 | R024 | Rule 2 multi-ZIP — Rule 1 record (ZIP 02138) | New donor_id | ✅ | ❌ |
 | R025 | Rule 2 multi-ZIP — Rule 1 record (ZIP 02139) | New donor_id | ✅ | ❌ |
@@ -325,9 +289,10 @@ Example: `goldberg paul` in `needham ma` has ZIPs `02149` and `02492`.
    (`ms` vs no suffix) affect matching. This tests that the
    normalization utility preserves meaningful tokens.
 
-3. **Collision records are not rejected** — they enter `dim_donors`
-   as separate records AND appear in `dim_donors_unresolved`.
-   No data is lost.
+3. **All records enter `dim_donors`** — no records are rejected or dropped.
+   Records sharing a canonical key resolve to the same donor_id.
+   `dim_donors_unresolved` exists as a reserved table for post-MVP
+   collision handling — it is not populated in the current implementation.
 
 4. **Rule order matters** — Rule 1 is always attempted first.
    Rule 2 only fires if Rule 1 finds no match.
@@ -355,3 +320,11 @@ Example: `goldberg paul` in `needham ma` has ZIPs `02149` and `02492`.
 
    Expected: rule1 should account for the vast majority of records.
    A high no_match rate indicates a normalization or data quality issue.
+
+7. **True collision detection is deferred to post-MVP** — the current
+   batch hash system cannot distinguish "same donor, two contributions"
+   from "two different people with identical name and ZIP." Same
+   canonical key always resolves to the same donor_id. Collision
+   detection requires either incremental matching against a known-good
+   donor registry or additional disambiguating fields not present in
+   FEC individual contribution data.

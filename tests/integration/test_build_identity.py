@@ -1,6 +1,6 @@
 """
 Integration tests for identity resolution.
-Ticket 4.2 — dim_donors Core Matching Logic
+Tickets 4.2 + 4.3 — dim_donors Core Matching Logic
 
 Tests validate fixture dataset outcomes BEFORE real data is processed.
 All fixture scenarios must pass before running against full FEC sample.
@@ -30,7 +30,7 @@ FIXTURE_PATH = Path("tests/fixtures/identity_fixtures.csv")
 TEST_EXECUTION_DATE = date(2099, 6, 1)  # far future — won't collide with real data
 TEMP_STAGING_TABLE = "staging.stg_identity_test"
 TEST_DIM_DONORS_TABLE = "core.dim_donors_test"
-TEST_UNRESOLVED_TABLE = "core.dim_donors_unresolved_test"
+TEST_UNRESOLVED_TABLE = "core.dim_donors_unresolved_test" # reserved — not populated until post-MVP
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +62,7 @@ def identity_results(bq_client, project_id):
         bq_client, project_id,
         source_table=TEMP_STAGING_TABLE,
         dim_donors_table=TEST_DIM_DONORS_TABLE,
-        unresolved_table=TEST_UNRESOLVED_TABLE,
+        unresolved_table=TEST_UNRESOLVED_TABLE, # reserved — not populated until post-MVP
         execution_date=TEST_EXECUTION_DATE,
     )
     # Load results indexed by sub_id for easy lookup
@@ -168,13 +168,50 @@ def test_null_address_record_gets_new_donor_id(identity_results):
 
 
 # ---------------------------------------------------------------------------
-# Scenario 4 — Collision (Same Name + ZIP, Different People)
+# Scenario 4 — Same Name + ZIP (Resolved as Same Donor)
 # ---------------------------------------------------------------------------
+
+def test_same_name_zip_resolves_to_same_donor(identity_results):
+    """R013 and R014 share name+ZIP — resolved to same donor_id."""
+    r013 = identity_results.get("R013")
+    r014 = identity_results.get("R014")
+    assert r013 is not None
+    assert r014 is not None
+    assert r013["donor_id"] == r014["donor_id"], (
+        "R013 and R014 share name+ZIP — should resolve to same donor_id"
+    )
+    assert r013["identity_conflict"] is False
+
+
+def test_same_name_zip_resolves_to_same_donor_lee(identity_results):
+    """R015 and R016 share name+ZIP — resolved to same donor_id."""
+    r015 = identity_results.get("R015")
+    r016 = identity_results.get("R016")
+    assert r015 is not None
+    assert r016 is not None
+    assert r015["donor_id"] == r016["donor_id"]
+    assert r015["identity_conflict"] is False
 
 
 # ---------------------------------------------------------------------------
-# Scenario 5 — Rule 2 Multi-Match Collision
+# Scenario 5 — Same Name, Different ZIP (Separate Donors)
 # ---------------------------------------------------------------------------
+
+def test_different_zip_gets_different_donor_id(identity_results):
+    """R017/R018 share ZIP 37201, R019 has ZIP 37202 — separate donor_ids."""
+    r017 = identity_results.get("R017")
+    r018 = identity_results.get("R018")
+    r019 = identity_results.get("R019")
+    assert r017 is not None
+    assert r018 is not None
+    assert r019 is not None
+    assert r017["donor_id"] == r018["donor_id"], (
+        "R017 and R018 share name+ZIP — should resolve to same donor_id"
+    )
+    assert r019["donor_id"] != r017["donor_id"], (
+        "R019 has different ZIP — should get a different donor_id"
+    )
+    assert r019["identity_conflict"] is False
 
 
 # ---------------------------------------------------------------------------

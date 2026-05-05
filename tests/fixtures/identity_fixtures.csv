@@ -11,13 +11,13 @@ R009,JOHNSON ROBERT,johnson robert,DENVER,CO,80201,80201,denver co,300,2025-01-0
 R010,WILLIAMS SARAH,williams sarah,MIAMI,FL,33101,33101,miami fl,125,2025-02-14,no_match_new_donor,new_donor_id
 R011,BROWN MICHAEL,brown michael,PHOENIX,AZ,85001,85001,phoenix az,450,2025-03-10,no_match_new_donor,new_donor_id
 R012,GARCIA LINDA,garcia linda,DALLAS,TX,75201,75201,dallas tx,225,2025-01-30,no_match_new_donor,new_donor_id
-R013,SMITH JAMES,smith james,PORTLAND,OR,97201,97201,portland or,100,2025-01-12,collision_same_name_zip,conflict_separate_records
-R014,SMITH JAMES,smith james,PORTLAND,OR,97201,97201,portland or,100,2025-01-12,collision_same_name_zip,conflict_separate_records
-R015,LEE JENNIFER,lee jennifer,AUSTIN,TX,78701,78701,austin tx,175,2025-02-08,collision_same_name_zip,conflict_separate_records
-R016,LEE JENNIFER,lee jennifer,AUSTIN,TX,78701,78701,austin tx,175,2025-02-08,collision_same_name_zip,conflict_separate_records
-R017,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37201,37201,nashville tn,350,2025-01-25,rule2_multi_match_collision,conflict_unresolved
-R018,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37201,37201,nashville tn,350,2025-01-25,rule2_multi_match_collision,conflict_unresolved
-R019,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37202,37202,nashville tn,350,2025-01-25,rule2_multi_match_collision,conflict_unresolved
+R013,SMITH JAMES,smith james,PORTLAND,OR,97201,97201,portland or,100,2025-01-12,rule1_exact_match,match_existing
+R014,SMITH JAMES,smith james,PORTLAND,OR,97201,97201,portland or,100,2025-01-12,rule1_exact_match,match_existing
+R015,LEE JENNIFER,lee jennifer,AUSTIN,TX,78701,78701,austin tx,175,2025-02-08,rule1_exact_match,match_existing
+R016,LEE JENNIFER,lee jennifer,AUSTIN,TX,78701,78701,austin tx,175,2025-02-08,rule1_exact_match,match_existing
+R017,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37201,37201,nashville tn,350,2025-01-25,rule1_exact_match,match_existing
+R018,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37201,37201,nashville tn,350,2025-01-25,rule1_exact_match,match_existing
+R019,TAYLOR WILLIAM,taylor william,NASHVILLE,TN,37202,37202,nashville tn,350,2025-01-25,no_match_new_donor,new_donor_id
 R020,ANDERSON PATRICIA,anderson patricia,SAN FRANCISCO,CA,94101,94101,san francisco ca,600,2025-03-20,no_match_new_donor,new_donor_id
 R021,HARRIS JANET P,harris janet p,NEW YORK,NY,10001,10001,new york ny,500,2025-03-13,rule1_exact_match,match_existing
 R022,HARRIS JANET P.,harris janet p,NEW YORK,NY,10001,10001,new york ny,500,2025-03-13,rule1_exact_match,match_existing

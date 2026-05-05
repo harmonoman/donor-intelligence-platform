@@ -20,11 +20,14 @@ Why Rule 1 before Rule 2:
     the same person than two donors in the same city+state.
     Rule 1 is the stronger signal.
 
-Why collision handling matters:
-    When two records share the same matching key, we cannot know
-    if they are the same person or two different people.
-    Silent merging is never acceptable — it corrupts analytics.
-    We flag and route to unresolved for human review.
+Key architectural decision:
+    Same canonical key = same donor. Always.
+    In a deterministic batch hash system, two records sharing a
+    canonical key cannot be distinguished as "same person, two
+    contributions" vs "two different people with identical fields."
+    Both resolve to the same donor_id. identity_conflict is always FALSE.
+    True collision detection requires incremental matching against a
+    known-good donor registry — deferred to post-MVP.
 """
 
 import argparse
@@ -161,8 +164,6 @@ def load_fixture_to_staging_temp(
 def build_identity_sql(
     project_id: str,
     source_table: str,
-    dim_donors_table: str,
-    unresolved_table: str,
     execution_date: date,
 ) -> str:
     """
@@ -174,16 +175,20 @@ def build_identity_sql(
               record shares the same name + address. If yes → inherit
               that canonical key (same donor_id). If no → new donor_id.
 
-    This two-pass approach is necessary because Rule 1 and Rule 2 use
-    different matching fields. A single-pass hash cannot link a record
-    with ZIP to a record without ZIP even if they represent the same donor.
+    Key principle:
+    Same canonical key = same donor. Always.
+    In a deterministic batch hash system, two records sharing a
+    canonical key cannot be distinguished as "same person, two
+    contributions" vs "two different people with identical fields."
+    Both resolve to the same donor_id. This is a known limitation
+    of deterministic matching on available FEC fields.
 
     donor_id = MD5(canonical_key) — deterministic and reproducible.
-    Collision detection is implemented in Ticket 4.3.
+    identity_conflict is always FALSE in this implementation.
     """
     return f"""
     -- Step 1: Load source records
-WITH source AS (
+    WITH source AS (
         SELECT
             sub_id,
             donor_name_normalized,
@@ -195,7 +200,6 @@ WITH source AS (
     ),
 
     -- Pass 1: Rule 1 — match on name + ZIP
-    -- Records with a ZIP always use this path
     rule1_matches AS (
         SELECT
             sub_id,
@@ -222,9 +226,6 @@ WITH source AS (
     ),
 
     -- Pass 2: Rule 2 — look up whether a Rule 1 record shares name + address
-    -- If match found → inherit Rule 1 canonical_key (same donor_id)
-    -- If no match → create new key on address
-    -- If no address either → unique key on sub_id (no_match)
     rule2_matches AS (
         SELECT
             r2.sub_id,
@@ -274,7 +275,7 @@ WITH source AS (
     ),
 
     -- Step 4: All records sharing a canonical key resolve to the same donor_id
-    -- Collision detection (identity_conflict flag) is implemented in Ticket 4.3
+    -- identity_conflict is always FALSE — same key always means same donor
     final AS (
         SELECT
             w.donor_id,
@@ -297,7 +298,7 @@ def run_identity_resolution(
     project_id: str,
     source_table: str = STAGING_TABLE,
     dim_donors_table: str = DIM_DONORS_TABLE,
-    unresolved_table: str = UNRESOLVED_TABLE,
+    unresolved_table: str = UNRESOLVED_TABLE, # reserved — not populated until post-MVP
     execution_date: date = None,
 ) -> int:
     """
@@ -305,12 +306,13 @@ def run_identity_resolution(
     Returns number of records written to dim_donors.
     """
     ensure_dim_donors_exists(client, project_id, dim_donors_table)
+    ensure_unresolved_exists(client, project_id, unresolved_table)  # reserved — not populated until post-MVP
 
     identity_sql = build_identity_sql(
-        project_id, source_table, dim_donors_table, unresolved_table, execution_date
+        project_id, source_table, execution_date
     )
 
-    # Write results to a temp table first
+    # Write results to temp table
     temp_table = f"{project_id}.core._dim_donors_temp"
     temp_job = bigquery.QueryJobConfig(
         destination=temp_table,
@@ -360,7 +362,7 @@ def run_identity_resolution(
     count = list(client.query(count_query).result())[0]["cnt"]
     print(f"  Identity resolution complete: {count:,} records in dim_donors")
 
-    # Log match_rule distribution for operational visibility
+    # Log match_rule distribution
     stats_query = f"""
         SELECT match_rule, COUNT(*) as cnt
         FROM `{project_id}.{dim_donors_table}`
