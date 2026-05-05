@@ -1,5 +1,10 @@
 -- Core Table: dim_donors
--- Ticket 4.2 — Identity Resolution Layer
+-- Tickets 4.2 + 4.3 — Identity Resolution Layer
+--
+-- NOTE: This file is documentation only — the table is created
+-- programmatically via ensure_dim_donors_exists() in build_identity.py.
+-- BigQuery REQUIRED mode is equivalent to NOT NULL shown here.
+-- Keep this file in sync with the schema in build_identity.py.
 --
 -- One row per canonical donor entity.
 -- donor_id is deterministic — hash of the canonical matching key.
@@ -9,9 +14,10 @@
 --   Rule 2: donor_name_normalized + donor_address_normalized
 --   No match: hash of donor_name_normalized + sub_id (unique per record)
 --
--- identity_conflict = TRUE when multiple distinct records
--- share the same matching key and cannot be resolved.
--- Conflicted records are ALSO written to dim_donors_unresolved.
+-- identity_conflict is always FALSE in current implementation.
+-- Same canonical key always resolves to same donor_id.
+-- True collision detection deferred to post-MVP.
+-- dim_donors_unresolved exists but is not populated in current implementation.
 
 CREATE TABLE IF NOT EXISTS `donor_platform.core.dim_donors` (
     donor_id                 STRING    NOT NULL,  -- deterministic hash

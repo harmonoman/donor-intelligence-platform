@@ -1,6 +1,6 @@
 """
 Integration tests for identity resolution.
-Tickets 4.2 + 4.3 — dim_donors Core Matching Logic
+Tickets 4.1 + 4.2 — fixture validation and core matching logic.
 
 Tests validate fixture dataset outcomes BEFORE real data is processed.
 All fixture scenarios must pass before running against full FEC sample.

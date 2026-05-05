@@ -89,7 +89,11 @@ def ensure_unresolved_exists(
     project_id: str,
     table_id: str = UNRESOLVED_TABLE,
 ) -> None:
-    """Create dim_donors_unresolved table if it does not exist."""
+    """
+    Create dim_donors_unresolved table if it does not exist.
+    Reserved for post-MVP collision handling — not populated
+    in the current batch hash implementation.
+    """
     full_table_id = f"{project_id}.{table_id}"
     schema = [
         bigquery.SchemaField("donor_id",                 "STRING", "NULLABLE"),
