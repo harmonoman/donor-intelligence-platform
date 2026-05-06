@@ -41,7 +41,7 @@ from pipelines.utils.env import get_required_env, load_env
 DEFAULT_CSV_PATH = Path("data/fec_sample.csv")
 DEFAULT_TABLE_ID = "raw.fec_contributions"
 DELIMITER = "|"
-ENCODING = "utf-8"
+ENCODING = "latin-1"
 
 
 # ---------------------------------------------------------------------------
