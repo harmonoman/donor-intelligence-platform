@@ -360,6 +360,8 @@ def run_staging_chunked(
         end = min(offset + chunk_size, total_rows)
         print(f"  Chunk {chunk_num}: rows {offset + 1:,} → {end:,}...")
 
+        # ROW_NUMBER() OVER (ORDER BY SUB_ID) sorts the full partition before paginating.
+        # Acceptable for 15M rows. At 100M+ rows consider alternative pagination strategies.
         chunk_query = f"""
             WITH numbered AS (
                 SELECT

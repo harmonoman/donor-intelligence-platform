@@ -120,6 +120,11 @@ to the FEC committee master file (`cm.txt`) — tracked as post-MVP.
 `cmte_id` is stored as-is in the mart. Committee name enrichment
 is a post-MVP enhancement.
 
+See: `sql/marts/exploration/committee_lookup.sql`
+
+Full enrichment requires joining to the FEC committee master file.
+Download: `https://www.fec.gov/files/bulk-downloads/2024/cm24.zip`
+
 ---
 
 ## Final Threshold Constants

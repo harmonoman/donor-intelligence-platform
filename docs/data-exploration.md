@@ -332,14 +332,3 @@ Example: `"ATLANTA"` + `"GA"` → `"atlanta ga"`
 This is the maximum address specificity available in the source data.
 Identity resolution Rule 2 matches on normalized name + city + state.
 Street-level matching is not possible with this dataset.
-
----
-
-## Open Questions
-
-- **TRANSACTION_DT date parsing:** Confirmed format is `MMDDYYYY`.
-  Staging SQL must use `PARSE_DATE('%m%d%Y', TRANSACTION_DT)` to convert
-  to a standard DATE type. BigQuery does not handle this format natively.
-
-- **TRANSACTION_AMT format:** Confirm whether values are in dollars or
-  cents before writing staging SQL.

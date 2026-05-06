@@ -57,6 +57,14 @@ def test_recency_full_coverage():
         assert len(tiers) == 1, f"Days {days} maps to {len(tiers)} tiers"
 
 
+def test_recency_lapsed_has_no_upper_bound():
+    """Values well beyond observed maximum still classify as lapsed."""
+    for days in [960, 1000, 2000, 5000]:
+        assert days > RECENCY_ACTIVE_MAX, (
+            f"{days} days should be lapsed but is within active range"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Frequency threshold tests
 # ---------------------------------------------------------------------------
