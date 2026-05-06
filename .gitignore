@@ -222,3 +222,6 @@ exec -l /
 logs/
 airflow.db
 airflow/
+data/*.zip
+data/indiv24.zip
+data/*.zip
