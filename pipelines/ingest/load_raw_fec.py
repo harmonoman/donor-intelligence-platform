@@ -6,9 +6,13 @@ Loads FEC contribution CSV into BigQuery raw layer.
 
 Usage:
     uv run python pipelines/ingest/load_raw_fec.py --execution-date 2025-01-01
+    uv run python pipelines/ingest/load_raw_fec.py \
+        --execution-date 2024-01-01 \
+        --csv-path data/itcont_2024.txt \
+        --chunk-size 500000
 
 What this does:
-    1. Reads FEC sample CSV
+    1. Reads FEC CSV (in chunks for large files)
     2. Adds _load_date column
     3. Loads to BigQuery with partition overwrite
 
@@ -42,6 +46,7 @@ DEFAULT_CSV_PATH = Path("data/fec_sample.csv")
 DEFAULT_TABLE_ID = "raw.fec_contributions"
 DELIMITER = "|"
 ENCODING = "latin-1"
+DEFAULT_CHUNK_SIZE = 500_000  # rows per chunk — safe for 1GB available RAM
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +59,7 @@ def load_csv_to_dataframe(csv_path: Path) -> pd.DataFrame:
     Preserves all original FEC column names — no renaming.
     All fields read as strings initially to preserve raw values.
     TRANSACTION_AMT will be cast during BigQuery load via schema.
+    Use for small files only (< 1M rows). Use load_csv_chunked for large files.
     """
     if not csv_path.exists():
         raise FileNotFoundError(
@@ -125,6 +131,87 @@ def load_to_bigquery(
     return rows_loaded
 
 
+def load_csv_chunked(
+    csv_path: Path,
+    project_id: str,
+    table_id: str,
+    execution_date: date,
+    client: bigquery.Client,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> int:
+    """
+    Load a large FEC CSV file to BigQuery in chunks.
+
+    Why chunked loading:
+        Large FEC files (10M+ rows) cannot be loaded into a single pandas
+        DataFrame without exhausting available RAM. Chunked loading reads
+        and uploads one batch at a time, freeing memory between chunks.
+
+    Idempotency:
+        First chunk uses WRITE_TRUNCATE to overwrite the partition.
+        Subsequent chunks use WRITE_APPEND to add to the same partition.
+        Re-running the full load truncates on the first chunk and rebuilds.
+
+    Returns: total rows loaded
+    """
+    if not csv_path.exists():
+        raise FileNotFoundError(f"CSV file not found at: {csv_path}")
+
+    ensure_table_exists(client, project_id, table_id)
+    full_table_id = f"{project_id}.{table_id}${execution_date.strftime('%Y%m%d')}"
+
+    # Column names from schema — exclude _load_date (added per chunk)
+    col_names = [f["name"] for f in RAW_FEC_SCHEMA if f["name"] != "_load_date"]
+
+    total_rows = 0
+    chunk_num = 0
+
+    reader = pd.read_csv(
+        csv_path,
+        delimiter=DELIMITER,
+        encoding=ENCODING,
+        dtype=str,
+        keep_default_na=False,
+        chunksize=chunk_size,
+        header=None,        # raw FEC files have no header row
+        names=col_names,    # apply schema column names
+    )
+
+    for chunk in reader:
+        chunk_num += 1
+        chunk = chunk.copy()
+        chunk["_load_date"] = execution_date
+
+        # First chunk truncates partition — subsequent chunks append
+        write_disposition = (
+            bigquery.WriteDisposition.WRITE_TRUNCATE
+            if chunk_num == 1
+            else bigquery.WriteDisposition.WRITE_APPEND
+        )
+
+        job_config = bigquery.LoadJobConfig(
+            schema=[
+                bigquery.SchemaField(f["name"], f["type"], mode=f["mode"])
+                for f in RAW_FEC_SCHEMA
+            ],
+            write_disposition=write_disposition,
+            source_format=bigquery.SourceFormat.CSV,
+            skip_leading_rows=0,
+        )
+
+        load_job = client.load_table_from_dataframe(
+            chunk, full_table_id, job_config=job_config
+        )
+        load_job.result(timeout=300)
+
+        total_rows += len(chunk)
+        print(f"  Chunk {chunk_num}: {len(chunk):,} rows (running total: {total_rows:,})")
+
+        del chunk  # free memory immediately before next chunk
+
+    return total_rows
+
+
 def count_rows_in_partition(
     client: bigquery.Client,
     project_id: str,
@@ -181,7 +268,7 @@ def ensure_table_exists(
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Load FEC sample CSV into BigQuery raw layer."
+        description="Load FEC CSV into BigQuery raw layer."
     )
     parser.add_argument(
         "--execution-date",
@@ -199,6 +286,17 @@ def parse_args():
         default=DEFAULT_TABLE_ID,
         help=f"BigQuery table ID (default: {DEFAULT_TABLE_ID})",
     )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=DEFAULT_CHUNK_SIZE,
+        help=f"Rows per chunk for large file loading (default: {DEFAULT_CHUNK_SIZE:,})",
+    )
+    parser.add_argument(
+        "--chunked",
+        action="store_true",
+        help="Force chunked loading — required for large files (10M+ rows)",
+    )
     return parser.parse_args()
 
 
@@ -215,6 +313,7 @@ def main():
         sys.exit(1)
 
     project_id = get_required_env("GCP_PROJECT_ID")
+    client = bigquery.Client(project=project_id)
 
     print(f"\n{'='*60}")
     print("FEC RAW INGESTION")
@@ -222,19 +321,28 @@ def main():
     print(f"  Execution date : {execution_date}")
     print(f"  Source file    : {args.csv_path}")
     print(f"  Target table   : {project_id}.{args.table_id}")
+    print(f"  Mode           : {'chunked' if args.chunked else 'standard'}")
+    if args.chunked:
+        print(f"  Chunk size     : {args.chunk_size:,} rows")
     print(f"{'='*60}\n")
 
-    # Step 1 — load CSV
-    df = load_csv_to_dataframe(args.csv_path)
+    if args.chunked:
+        # Chunked loading — for large files (10M+ rows)
+        rows_loaded = load_csv_chunked(
+            args.csv_path,
+            project_id,
+            args.table_id,
+            execution_date,
+            client,
+            chunk_size=args.chunk_size,
+        )
+    else:
+        # Standard loading — for small files (fec_sample.csv, fixtures)
+        df = load_csv_to_dataframe(args.csv_path)
+        df = add_load_date_column(df, execution_date)
+        rows_loaded = load_to_bigquery(df, project_id, args.table_id, execution_date, client)
 
-    # Step 2 — add partition key
-    df = add_load_date_column(df, execution_date)
-
-    # Step 3 — load to BigQuery
-    client = bigquery.Client(project=project_id)
-    rows_loaded = load_to_bigquery(df, project_id, args.table_id, execution_date, client)
-
-    # Step 4 — verify
+    # Verify
     bq_count = count_rows_in_partition(client, project_id, args.table_id, execution_date)
 
     print(f"\n{'='*60}")
