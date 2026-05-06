@@ -329,6 +329,77 @@ def run_staging(
     return merge_into_staging(client, project_id, df)
 
 
+def run_staging_chunked(
+    client: bigquery.Client,
+    project_id: str,
+    execution_date: date,
+    chunk_size: int = 500_000,
+) -> int:
+    """
+    Run staging in chunks using ROW_NUMBER() pagination.
+    Safe for 10M+ row partitions with limited RAM.
+    """
+    ensure_staging_table_exists(client, project_id)
+
+    # Count IND rows for this partition
+    count_query = f"""
+        SELECT COUNT(*) as cnt
+        FROM `{project_id}.raw.fec_contributions`
+        WHERE _load_date = DATE('{execution_date.isoformat()}')
+        AND ENTITY_TP = 'IND'
+    """
+    total_rows = list(client.query(count_query).result())[0]["cnt"]
+    print(f"  Total IND rows: {total_rows:,}")
+
+    total_merged = 0
+    chunk_num = 0
+    offset = 0
+
+    while offset < total_rows:
+        chunk_num += 1
+        end = min(offset + chunk_size, total_rows)
+        print(f"  Chunk {chunk_num}: rows {offset + 1:,} → {end:,}...")
+
+        chunk_query = f"""
+            WITH numbered AS (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER (ORDER BY SUB_ID) as rn
+                FROM `{project_id}.raw.fec_contributions`
+                WHERE _load_date = DATE('{execution_date.isoformat()}')
+                AND ENTITY_TP = 'IND'
+            )
+            SELECT * EXCEPT(rn)
+            FROM numbered
+            WHERE rn BETWEEN {offset + 1} AND {end}
+        """
+
+        df = client.query(chunk_query).to_dataframe(
+            create_bqstorage_client=True,
+            progress_bar_type=None,
+        )
+
+        if df.empty:
+            break
+
+        if "_load_date" in df.columns:
+            df["_load_date"] = df["_load_date"].astype(str)
+
+        df = parse_contribution_date(df)
+        df = apply_normalization(df)
+        df = prepare_staging_dataframe(df)
+
+        merged = merge_into_staging(client, project_id, df)
+        total_merged += merged
+
+        print(f"  Chunk {chunk_num} merged: {merged:,} rows (total: {total_merged:,})")
+        del df
+
+        offset += chunk_size
+
+    return total_merged
+
+
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
@@ -341,6 +412,17 @@ def parse_args():
         "--execution-date",
         required=True,
         help="Execution date (YYYY-MM-DD) — must match a raw partition date",
+    )
+    parser.add_argument(
+        "--chunked",
+        action="store_true",
+        help="Process in chunks — required for large partitions (10M+ rows)",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=500_000,
+        help="Rows per chunk (default: 500,000)",
     )
     return parser.parse_args()
 
@@ -363,9 +445,17 @@ def main():
     print(f"{'='*60}")
     print(f"  Execution date : {execution_date}")
     print(f"  Target table   : {project_id}.{STAGING_TABLE}")
+    print(f"  Mode           : {'chunked' if args.chunked else 'standard'}")
+    if args.chunked:
+        print(f"  Chunk size     : {args.chunk_size:,} rows")
     print(f"{'='*60}\n")
 
-    rows_merged = run_staging(client, project_id, execution_date)
+    if args.chunked:
+        rows_merged = run_staging_chunked(
+            client, project_id, execution_date, chunk_size=args.chunk_size
+        )
+    else:
+        rows_merged = run_staging(client, project_id, execution_date)
 
     staging_count = count_staging_rows(client, project_id, execution_date)
 
