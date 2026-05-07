@@ -264,3 +264,19 @@ def test_non_conflict_donor_ids_are_unique(identity_results):
     assert len(set(donor_ids)) == len(donor_ids), (
         "Independent no-match records should have unique donor_ids"
     )
+
+
+def test_dim_donors_unresolved_is_empty(bq_client, project_id):
+    """
+    dim_donors_unresolved is reserved for post-MVP collision handling.
+    It must be empty in the current batch hash implementation.
+    """
+    query = f"""
+        SELECT COUNT(*) as cnt
+        FROM `{project_id}.{TEST_UNRESOLVED_TABLE}`
+        WHERE _load_date = DATE('{TEST_EXECUTION_DATE.isoformat()}')
+    """
+    count = list(bq_client.query(query).result())[0]["cnt"]
+    assert count == 0, (
+        "dim_donors_unresolved should be empty in current implementation"
+    )

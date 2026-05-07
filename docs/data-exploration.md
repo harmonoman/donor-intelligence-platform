@@ -10,6 +10,29 @@
 
 ---
 
+## Dataset Scope Update — Epic 5
+
+The pipeline was expanded in Epic 5 to include two full FEC election cycles:
+
+| File | Cycle | Rows | Date Range |
+|---|---|---|---|
+| itcont_2024.txt | 2023-2024 | 15,264,403 | Aug 2023 to Nov 2024 |
+| itcont_2026.txt | 2025-2026 | 12,737,488 | Feb 2025 to Mar 2026 |
+| fec_sample.csv | 2025-2026 sample | 50,000 | Dec 2025 only |
+
+Total in BigQuery: approximately 28M raw rows across three partitions.
+
+The original exploration below was conducted against fec_sample.csv (50k rows).
+Findings remain valid. The expanded dataset confirmed the same patterns
+at larger scale, with the addition of meaningful recency signal across
+16 months of history.
+
+Chunked ingestion and staging were added to handle the large file sizes
+within container memory constraints (1.1GB available RAM).
+See: pipelines/ingest/load_raw_fec.py and pipelines/staging/build_staging.py
+
+---
+
 ## Source File Verification
 
 | Property | Value |
@@ -269,10 +292,11 @@ Staging must strip to 5-digit ZIP before identity resolution Rule 1
 
 ### ZIP Null Rate in Staging
 
-Verified against 49,981 staged records:
-- Records with empty zip_normalized: 26 (0.05%)
-- These records will fall through Rule 1 (name + ZIP) to Rule 2 (name + full address)
-- Impact on identity resolution: negligible
+Verified against full dataset (28M contributions):
+- 2024 partition: 8,828 records resolved via Rule 2 (no ZIP)
+- 2026 partition: 8,710 records resolved via Rule 2 (no ZIP)
+- no_match records (no ZIP, no address): 771 (2024) and 882 (2026)
+- Impact on identity resolution: negligible at scale
 - No action required
 
 ### ENTITY_TP Filter Required
@@ -308,14 +332,3 @@ Example: `"ATLANTA"` + `"GA"` → `"atlanta ga"`
 This is the maximum address specificity available in the source data.
 Identity resolution Rule 2 matches on normalized name + city + state.
 Street-level matching is not possible with this dataset.
-
----
-
-## Open Questions
-
-- **TRANSACTION_DT date parsing:** Confirmed format is `MMDDYYYY`.
-  Staging SQL must use `PARSE_DATE('%m%d%Y', TRANSACTION_DT)` to convert
-  to a standard DATE type. BigQuery does not handle this format natively.
-
-- **TRANSACTION_AMT format:** Confirm whether values are in dollars or
-  cents before writing staging SQL.
