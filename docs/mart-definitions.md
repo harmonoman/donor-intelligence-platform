@@ -159,6 +159,19 @@ MONETARY_MEDIUM_MAX = 999
 
 2. **Committee names not enriched**: `cmte_id` stored as raw ID.
    Full enrichment requires FEC committee master file (post-MVP).
+   Download: `https://www.fec.gov/files/bulk-downloads/2024/cm24.zip`
 
 3. **Negative contribution amounts**: Refunds present in FEC data.
    Stored accurately. Fall into Low monetary tier automatically.
+
+4. **committee_ids field is capped at 50 committees per donor.** High-frequency
+   donors with contributions to many committees will show only the first 50
+   alphabetically. Full committee enrichment with human-readable names requires
+   joining to the FEC committee master file (post-MVP).
+
+5. **Donors contributing from multiple addresses may appear as separate rows.**
+   The batch hash identity resolution system assigns separate donor_ids to
+   contributions with different name+ZIP combinations. Kenneth Griffin appears
+   twice in the mart (ZIP 33131 Miami and ZIP 60611 Chicago) because he
+   donated from two addresses. This is a known limitation of deterministic
+   matching documented in docs/identity-resolution-fixtures.md.
