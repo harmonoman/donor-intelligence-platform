@@ -153,12 +153,18 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Build marts.mart_donor_summary from identity and staging layers."
     )
+    parser.add_argument(
+        "--execution-date",
+        required=False,
+        default=None,
+        help="Execution date (YYYY-MM-DD). Logged only. Mart is always a full rebuild.",
+    )
     return parser.parse_args()
 
 
 def main():
     load_env()
-    parse_args()
+    args = parse_args()
 
     project_id = get_required_env("GCP_PROJECT_ID")
     client = bigquery.Client(project=project_id)
@@ -168,6 +174,8 @@ def main():
     print(f"{'='*60}")
     print(f"  Target table   : {project_id}.{MART_TABLE}")
     print("  Mode           : full rebuild")
+    if args.execution_date:
+        print(f"  Execution date : {args.execution_date}")
     print(f"{'='*60}\n")
 
     count = build_mart(client, project_id)
