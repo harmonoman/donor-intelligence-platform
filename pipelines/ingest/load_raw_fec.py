@@ -138,6 +138,7 @@ def load_csv_chunked(
     execution_date: date,
     client: bigquery.Client,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    has_header: bool = False,  # raw FEC txt files have no header
 ) -> int:
     """
     Load a large FEC CSV file to BigQuery in chunks.
@@ -173,8 +174,8 @@ def load_csv_chunked(
         dtype=str,
         keep_default_na=False,
         chunksize=chunk_size,
-        header=None,        # raw FEC files have no header row
-        names=col_names,    # apply schema column names
+        header=0 if has_header else None,  # skip header row if present
+        names=col_names if not has_header else None,
     )
 
     for chunk in reader:
