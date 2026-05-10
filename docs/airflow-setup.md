@@ -177,3 +177,136 @@ Reset it:
 ```bash
 airflow users reset-password --username admin
 ```
+
+---
+
+## donor_pipeline DAG
+
+### Overview
+
+The `donor_pipeline` DAG orchestrates the full pipeline in strict fail-fast order:
+ingest_raw
+|
+check_raw
+|
+build_staging
+|
+check_staging
+|
+build_identity_layer
+|
+check_identity
+|
+build_mart
+|
+check_mart
+
+Each check task validates the output of the previous build task. If any
+check fails, all downstream tasks are skipped immediately. No bad data
+propagates to the next layer.
+
+### Configuration
+
+The DAG requires `dags_folder` to point at `/workspace/dags`. If the DAG
+does not appear in the UI, verify this setting:
+
+```bash
+grep "dags_folder" ~/airflow/airflow.cfg
+```
+
+It must show:
+dags_folder = /workspace/dags
+
+If not, update it:
+
+```bash
+sed -i 's|dags_folder = /home/vscode/airflow/dags|dags_folder = /workspace/dags|' ~/airflow/airflow.cfg
+```
+
+### Environment Variables
+
+The DAG requires `GCP_PROJECT_ID` to be available to Airflow worker
+processes. Set it in the Airflow environment file:
+
+```bash
+echo "GCP_PROJECT_ID=your-project-id" >> ~/airflow/.env
+echo "GOOGLE_CLOUD_PROJECT=your-project-id" >> ~/airflow/.env
+```
+
+Restart Airflow after making this change.
+
+### Triggering the DAG
+
+1. Open http://localhost:8080
+2. Search for `donor_pipeline`
+3. Click the toggle to unpause it
+4. Click the play button and select "Trigger DAG w/ config"
+5. Set the params:
+
+```json
+{
+    "csv_path": "data/fec_sample.csv"
+}
+```
+
+6. Set a logical date that has not been used before (e.g. today's date)
+7. Click Trigger
+
+For a full cycle ingestion use:
+
+```json
+{
+    "csv_path": "data/itcont_2024.txt"
+}
+```
+
+Note: full cycle ingestion takes 20-40 minutes per partition.
+
+### Confirming a Successful Run
+
+All 8 tasks should show green in the task graph. Verify the audit trail:
+
+```sql
+SELECT run_id, task_name, status, row_count_output, timestamp
+FROM `your-project-id.metadata.pipeline_run_log`
+ORDER BY timestamp DESC
+LIMIT 8
+```
+
+All 8 rows should show status = PASS.
+
+### Schedule
+
+The DAG is scheduled monthly (`@monthly`) to match the FEC filing cadence.
+For the demo, trigger manually using "Trigger DAG w/ config".
+
+### Fail-Fast Behavior
+
+To verify fail-fast behavior during development, temporarily raise an
+exception in any check function in `pipelines/utils/pipeline_checks.py`.
+Trigger the DAG and confirm all downstream tasks show as upstream-failed
+in the UI. Revert the change before the demo.
+
+### Troubleshooting
+
+**DAG not appearing in UI**
+
+Verify `dags_folder` points to `/workspace/dags` and check for import errors:
+
+```bash
+airflow dags list-import-errors
+```
+
+**Tasks failing with GCP auth errors**
+
+Verify environment variables are set in `~/airflow/.env` and restart Airflow.
+Also verify ADC credentials are fresh:
+
+```bash
+gcloud auth application-default login
+```
+
+**Duplicate logical date error when triggering**
+
+Each logical date can only be used once per DAG. Use a new date for each
+manual test run.
