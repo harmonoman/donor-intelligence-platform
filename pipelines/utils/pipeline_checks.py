@@ -50,8 +50,10 @@ def check_raw(execution_date: str) -> int:
 
 def check_staging(execution_date: str) -> int:
     """
-    Validate staging has rows for execution_date.
-    Returns row count on success. Raises on failure.
+    Basic row count check for staging partition.
+    Note: superseded by pipelines/quality/check_staging.py for full
+    quality checks including null rate validation and duplicate detection.
+    Retained for backward compatibility with existing tests.
     """
     client, project_id = get_client()
     query = f"""
