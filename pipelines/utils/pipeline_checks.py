@@ -72,8 +72,10 @@ def check_staging(execution_date: str) -> int:
 
 def check_identity(execution_date: str) -> int:
     """
-    Validate dim_donors has rows for execution_date.
-    Returns row count on success. Raises on failure.
+    Basic row count check for dim_donors partition.
+    Note: superseded by pipelines/quality/check_identity.py for full
+    quality checks including sub_id uniqueness and row count reconciliation.
+    Retained for backward compatibility with existing tests.
     """
     client, project_id = get_client()
     query = f"""
