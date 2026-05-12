@@ -28,8 +28,10 @@ def get_client() -> tuple[bigquery.Client, str]:
 
 def check_raw(execution_date: str) -> int:
     """
-    Validate raw partition for execution_date has rows.
-    Returns row count on success. Raises on failure.
+    Basic row count check for raw partition.
+    Note: superseded by pipelines/quality/check_raw.py for full
+    quality checks including null validation and schema check.
+    Retained for backward compatibility with existing tests.
     """
     client, project_id = get_client()
     query = f"""

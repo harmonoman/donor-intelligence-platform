@@ -47,13 +47,13 @@ from airflow import DAG
 from pipelines.identity.build_identity import run_identity_resolution
 from pipelines.ingest.load_raw_fec import ensure_table_exists, load_csv_chunked
 from pipelines.marts.build_mart import build_mart
+from pipelines.quality.check_raw import run_raw_quality_checks
 from pipelines.staging.build_staging import run_staging_chunked
 from pipelines.utils.env import get_required_env, load_env
 from pipelines.utils.log_run import log_run
 from pipelines.utils.pipeline_checks import (
     check_identity,
     check_mart,
-    check_raw,
     check_staging,
 )
 
@@ -130,9 +130,12 @@ def task_ingest_raw(**context) -> None:
 
 def task_check_raw(**context) -> None:
     execution_date = context["ds"]
+    load_env()
+    project_id = get_required_env("GCP_PROJECT_ID")
+    client = bigquery.Client(project=project_id)
 
     def _run():
-        return check_raw(execution_date)
+        return run_raw_quality_checks(client, project_id, execution_date)
 
     run_with_logging(_run, "check_raw", execution_date)
 
