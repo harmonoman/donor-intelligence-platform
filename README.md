@@ -12,10 +12,22 @@ Built as a production-style capstone pipeline using:
 - Airflow (orchestration, local standalone in development)
 - Python (normalization, ingestion, identity resolution, mart build)
 - SQL (BigQuery transformations)
-- pytest (test suite, 120 tests passing)
+- pytest (test suite, 180 tests passing)
 
 The system produces a single canonical donor analytics mart across
 3,160,099 unique donors derived from 28 million FEC contribution records.
+
+---
+
+## Getting Started
+
+New engineers should begin with the setup documentation before running
+any pipeline scripts.
+
+1. GCP and BigQuery setup: see `docs/gcp-setup.md`
+2. Airflow local setup: see `docs/airflow-setup.md`
+3. Run the test suite to verify environment: `uv run pytest -v`
+4. Trigger the pipeline manually: see `scripts/run_pipeline.sh`
 
 ---
 
@@ -68,6 +80,10 @@ and missing or partial fields. The pipeline handles all of these explicitly.
 ---
 
 ## Architecture
+
+The pipeline processes data through five sequential layers. Each layer
+is validated before the next layer runs.
+
 ```
 FEC txt files (local)
 |
@@ -114,9 +130,11 @@ uv run python pipelines/marts/build_mart.py
 
 ---
 
-## Airflow DAG Structure (Epic 6, Pending)
+## Airflow DAG Structure
 
-The pipeline is designed for a strictly ordered fail-fast DAG:
+The pipeline runs as a strictly ordered fail-fast DAG with interleaved
+build and check tasks:
+
 ```
 ingest_raw
 |
@@ -126,7 +144,7 @@ build_staging
 |
 check_staging
 |
-build_identity
+build_identity_layer
 |
 check_identity
 |
@@ -136,7 +154,8 @@ check_mart
 ```
 
 No downstream step executes unless upstream validation passes.
-All scripts are parameterized and ready for DAG wiring.
+All scripts are parameterized with --execution-date for DAG compatibility.
+See docs/airflow-setup.md for setup and trigger instructions.
 
 ---
 
@@ -203,8 +222,10 @@ Match rule distribution on real data:
 | 2026-01-01 | 12,717,626 | 8,710 | 882 |
 
 identity_conflict is always FALSE in the current batch hash implementation.
-True collision detection requires incremental matching against an existing
-donor registry. Tracked in backlog as Stretch Goal Phase 1.
+This is a known architectural constraint, not a bug. Same canonical key
+always resolves to the same donor_id. True collision detection requires
+incremental matching against an existing donor registry. Tracked in
+backlog as Stretch Goal Phase 1.
 
 dim_donors_unresolved exists with correct schema and is created on every run.
 It is not populated in the current implementation. Reserved for post-MVP
@@ -348,18 +369,27 @@ engagement scoring logic.
 
 ## Test Suite
 
-120 tests passing across unit and integration layers.
+180 tests passing across unit and integration layers.
 
-| Layer | Tests | Coverage |
+| File | Tests | Coverage |
 |---|---|---|
-| Normalization | 31 | Real FEC edge cases including apostrophes, hyphens, ZIP+4 |
-| Schema | 8 | Column names, types, required fields |
-| Staging | 7 | Filter, normalization, date parsing, idempotency |
-| Identity resolution | 13 | All 6 fixture scenarios including Rule 2 multi-ZIP MIN |
-| Thresholds | 15 | Full coverage, no gaps, negative amount handling |
-| Mart scoring | 16 | All tier combinations, formula weights, boundary values |
-| BigQuery connection | 4 | Dataset existence, location |
-| Raw ingestion | 7 | Load, idempotency, row count match |
+| test_normalize.py | 36 | Real FEC edge cases including apostrophes, hyphens, ZIP+4 |
+| test_mart_thresholds.py | 16 | Full coverage, no gaps, negative amount handling |
+| test_mart_donor_summary.py | 16 | All tier combinations, formula weights, boundary values |
+| test_build_identity.py | 14 | All 6 fixture scenarios including Rule 2 multi-ZIP MIN |
+| test_donor_pipeline_dag.py | 12 | Task order, dependencies, fail-fast behavior |
+| test_schema.py | 10 | Column names, types, required fields |
+| test_log_run.py | 10 | Append-only logging, status validation |
+| test_pipeline_checks.py | 8 | Raw, staging, identity, mart quality gates |
+| test_load_raw_fec.py | 8 | Load, idempotency, row count match |
+| test_check_mart.py | 8 | Grain, null scores, row count consistency |
+| test_check_identity.py | 8 | sub_id uniqueness, reconciliation, null donor_id |
+| test_build_staging.py | 8 | Filter, normalization, date parsing, idempotency |
+| test_check_raw.py | 7 | Row count, schema, null checks |
+| test_fec_sample.py | 6 | FEC sample file structure and content |
+| test_check_staging.py | 6 | Row count, null rates, duplicate detection |
+| test_bigquery_connection.py | 4 | Dataset existence, location |
+| test_project_structure.py | 3 | Directory structure, required files |
 
 Run with:
 
@@ -370,6 +400,7 @@ uv run pytest -v
 ---
 
 ## Project Structure
+
 ```
 donor-intelligence-platform/
 ├── pipelines/
@@ -377,12 +408,14 @@ donor-intelligence-platform/
 │   ├── staging/         # Normalization and staging build
 │   ├── identity/        # Donor identity resolution
 │   ├── marts/           # Analytics mart build and thresholds
-│   └── utils/           # Shared normalization utility
+│   ├── quality/         # Data quality check functions
+│   └── utils/           # Shared normalization utility and logging
 ├── sql/
 │   ├── raw/             # Raw table schema
 │   ├── staging/         # Staging SQL reference
 │   ├── core/            # dim_donors schema reference
-│   └── marts/           # Mart SQL and exploration queries
+│   ├── marts/           # Mart SQL and exploration queries
+│   └── metadata/        # pipeline_run_log schema reference
 ├── tests/
 │   ├── unit/            # Pure logic tests
 │   ├── integration/     # BigQuery integration tests
@@ -391,11 +424,14 @@ donor-intelligence-platform/
 │   ├── data-exploration.md
 │   ├── mart-definitions.md
 │   ├── identity-resolution-fixtures.md
+│   ├── airflow-setup.md
+│   ├── data-quality.md
 │   └── gcp-setup.md
-├── dags/                # Airflow DAGs (Epic 6 pending)
+├── dags/                # Airflow DAGs
+├── scripts/             # Pipeline orchestration scripts
 └── data/
-├── fec_sample.csv   # 50k row test fixture
-└── indiv_header_file.csv
+    ├── fec_sample.csv   # 50k row test fixture
+    └── indiv_header_file.csv
 ```
 
 ---
@@ -415,10 +451,15 @@ Explicitly excluded from current implementation:
 
 ---
 
-## Remaining Epics
+## Epic Status
 
-| Epic | Status | Risk |
+| Epic | Status | Notes |
 |---|---|---|
-| Epic 6: Airflow DAG Wiring | Pending | Medium: untested end-to-end DAG execution |
-| Epic 7: Data Quality Framework | Pending | Low: validation functions already exist in runners |
-| Epic 8: Demo Readiness | Pending | Low: mart produces compelling real-data output |
+| Epic 1: Pre-Implementation Setup | Complete | GCP, Airflow, project scaffold |
+| Epic 2: Raw Ingestion Layer | Complete | 28M rows, chunked loading |
+| Epic 3: Staging Layer | Complete | Normalization, MERGE on SUB_ID |
+| Epic 4: Identity Resolution | Complete | 3.16M unique donors |
+| Epic 5: Analytics Mart | Complete | RFM scoring, lapsed donor use case |
+| Epic 6: Airflow Orchestration | Complete | 8-task fail-fast DAG, verified end-to-end |
+| Epic 7: Data Quality Framework | Complete | Quality gates at every layer |
+| Epic 8: Demo Readiness | In Progress | Documentation and demo prep |
