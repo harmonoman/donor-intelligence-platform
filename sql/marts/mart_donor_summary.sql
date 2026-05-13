@@ -18,6 +18,11 @@
 --
 -- Full rebuild on every run. No incremental logic.
 -- Idempotency guaranteed by WRITE_TRUNCATE on target table.
+--
+-- Note: contribution_date IS NOT NULL filter excludes donors whose
+-- contributions all have unparseable TRANSACTION_DT values in the
+-- FEC source file. Confirmed: 2 donors excluded as of 2024 cycle.
+-- These donors exist in dim_donors but have no valid contribution dates.
 
 CREATE OR REPLACE TABLE `{PROJECT_ID}.marts.mart_donor_summary` AS
 

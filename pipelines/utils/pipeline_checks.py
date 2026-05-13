@@ -93,6 +93,12 @@ def check_identity(execution_date: str) -> int:
 
 
 def check_mart() -> int:
+    """
+    Basic mart validation: row count, no duplicates, no null scores.
+    Note: superseded by pipelines/quality/check_mart.py for full
+    quality checks including row count consistency against dim_donors.
+    Retained for backward compatibility with existing tests.
+    """
     client, project_id = get_client()
 
     count_query = f"""
