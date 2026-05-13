@@ -310,3 +310,70 @@ gcloud auth application-default login
 
 Each logical date can only be used once per DAG. Use a new date for each
 manual test run.
+
+
+---
+
+## Pre-Demo Checklist
+
+Run through this checklist before every demo or presentation.
+
+- [ ] Verify ADC credentials are fresh:
+```bash
+  gcloud auth application-default login
+```
+- [ ] Confirm environment variables are set:
+```bash
+  echo $GCP_PROJECT_ID
+```
+  If empty, export them before starting Airflow:
+```bash
+  export GCP_PROJECT_ID=project-a10238bd-a355-474b-b6a
+  export GOOGLE_CLOUD_PROJECT=project-a10238bd-a355-474b-b6a
+```
+- [ ] Confirm dags_folder points to /workspace/dags:
+```bash
+  grep "dags_folder" ~/airflow/airflow.cfg
+```
+- [ ] Confirm GCP_PROJECT_ID is in Airflow env file:
+```bash
+  cat ~/airflow/.env
+```
+- [ ] Run full test suite:
+```bash
+  uv run pytest -v
+```
+- [ ] Start Airflow:
+```bash
+  airflow standalone
+```
+- [ ] Trigger DAG manually in UI against 50k sample partition
+- [ ] Confirm all 8 tasks show green in task graph
+- [ ] Confirm pipeline_run_log has 8 PASS entries
+- [ ] Run lapsed donor query in BigQuery console and confirm results
+
+### Recommended Demo Sequence
+
+1. Show pre-loaded results in BigQuery (28M rows already processed)
+2. Trigger the DAG live against the 50k sample (fast, safe, shows orchestration)
+3. Show Airflow UI with all 8 tasks green
+4. Query mart_donor_summary for lapsed major donors
+5. Show pipeline_run_log audit trail
+
+### Lapsed Donor Demo Query
+
+```sql
+SELECT
+    donor_name_normalized,
+    zip_normalized,
+    contribution_count,
+    total_contributions,
+    last_donation_date,
+    days_since_last_donation,
+    engagement_score
+FROM `project-a10238bd-a355-474b-b6a.marts.mart_donor_summary`
+WHERE total_contributions > 500
+AND days_since_last_donation > 365
+ORDER BY total_contributions DESC
+LIMIT 10
+```

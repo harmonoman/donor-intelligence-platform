@@ -28,8 +28,10 @@ def get_client() -> tuple[bigquery.Client, str]:
 
 def check_raw(execution_date: str) -> int:
     """
-    Validate raw partition for execution_date has rows.
-    Returns row count on success. Raises on failure.
+    Basic row count check for raw partition.
+    Note: superseded by pipelines/quality/check_raw.py for full
+    quality checks including null validation and schema check.
+    Retained for backward compatibility with existing tests.
     """
     client, project_id = get_client()
     query = f"""
@@ -48,8 +50,10 @@ def check_raw(execution_date: str) -> int:
 
 def check_staging(execution_date: str) -> int:
     """
-    Validate staging has rows for execution_date.
-    Returns row count on success. Raises on failure.
+    Basic row count check for staging partition.
+    Note: superseded by pipelines/quality/check_staging.py for full
+    quality checks including null rate validation and duplicate detection.
+    Retained for backward compatibility with existing tests.
     """
     client, project_id = get_client()
     query = f"""
@@ -68,8 +72,10 @@ def check_staging(execution_date: str) -> int:
 
 def check_identity(execution_date: str) -> int:
     """
-    Validate dim_donors has rows for execution_date.
-    Returns row count on success. Raises on failure.
+    Basic row count check for dim_donors partition.
+    Note: superseded by pipelines/quality/check_identity.py for full
+    quality checks including sub_id uniqueness and row count reconciliation.
+    Retained for backward compatibility with existing tests.
     """
     client, project_id = get_client()
     query = f"""
@@ -87,6 +93,12 @@ def check_identity(execution_date: str) -> int:
 
 
 def check_mart() -> int:
+    """
+    Basic mart validation: row count, no duplicates, no null scores.
+    Note: superseded by pipelines/quality/check_mart.py for full
+    quality checks including row count consistency against dim_donors.
+    Retained for backward compatibility with existing tests.
+    """
     client, project_id = get_client()
 
     count_query = f"""
