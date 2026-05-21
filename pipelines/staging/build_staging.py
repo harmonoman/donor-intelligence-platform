@@ -371,26 +371,26 @@ def run_staging_chunked(
             WHERE rn BETWEEN {offset + 1} AND {end}
         """
 
-        df = client.query(chunk_query).to_dataframe(
+        contribution_chunk = client.query(chunk_query).to_dataframe(
             create_bqstorage_client=True,
             progress_bar_type=None,
         )
 
-        if df.empty:
+        if contribution_chunk.empty:
             break
 
-        if "_load_date" in df.columns:
-            df["_load_date"] = df["_load_date"].astype(str)
+        if "_load_date" in contribution_chunk.columns:
+            contribution_chunk["_load_date"] = contribution_chunk["_load_date"].astype(str)
 
-        df = parse_contribution_date(df)
-        df = apply_normalization(df)
-        df = prepare_staging_dataframe(df)
+        contribution_chunk = parse_contribution_date(contribution_chunk)
+        contribution_chunk = apply_normalization(contribution_chunk)
+        contribution_chunk = prepare_staging_dataframe(contribution_chunk)
 
-        merged = merge_into_staging(client, project_id, df)
+        merged = merge_into_staging(client, project_id, contribution_chunk)
         total_merged += merged
 
         print(f"  Chunk {chunk_num} merged: {merged:,} rows (total: {total_merged:,})")
-        del df
+        del contribution_chunk
 
         offset += chunk_size
 
