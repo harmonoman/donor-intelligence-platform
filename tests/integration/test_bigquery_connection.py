@@ -1,7 +1,7 @@
 """
 Integration test — BigQuery connectivity and dataset existence.
 
-Ticket 1.2 — GCP Project + BigQuery Environment Setup
+GCP Project + BigQuery Environment Setup
 
 Run after setup_bigquery.py has been executed:
     uv run pytest tests/integration/test_bigquery_connection.py -v

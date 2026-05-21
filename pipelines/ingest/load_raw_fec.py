@@ -1,6 +1,6 @@
 """
 Raw FEC Ingestion Script
-Ticket 2.2 — Raw Ingestion Script
+Raw Ingestion Script
 
 Loads FEC contribution CSV into BigQuery raw layer.
 
@@ -20,10 +20,6 @@ Idempotency guarantee:
     Each execution_date is a separate BigQuery partition.
     WRITE_TRUNCATE overwrites that partition only.
     Rerunning the same date = same result, no duplicates.
-
-    Think of it like a dated drawer in a filing cabinet:
-    When you rerun, you empty that drawer and refill it.
-    You never stack a second copy on top.
 """
 
 import argparse
@@ -71,8 +67,8 @@ def load_csv_to_dataframe(csv_path: Path) -> pd.DataFrame:
         csv_path,
         delimiter=DELIMITER,
         encoding=ENCODING,
-        dtype=str,              # read all fields as string — BigQuery schema enforces types at load
-        keep_default_na=False,  # preserve empty strings as empty, not NaN
+        dtype=str,
+        keep_default_na=False,
     )
 
     print(f"  Loaded {len(df):,} rows from {csv_path}")

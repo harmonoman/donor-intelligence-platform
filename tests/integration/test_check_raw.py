@@ -1,6 +1,6 @@
 """
 Integration tests for raw layer quality checks.
-Ticket 7.1: Raw Layer Quality Checks
+Raw Layer Quality Checks
 
 Tests validate:
 - Valid dataset passes all checks

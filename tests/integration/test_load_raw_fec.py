@@ -1,6 +1,6 @@
 """
 Integration tests for raw FEC ingestion.
-Ticket 2.2 — Raw Ingestion Script
+Raw Ingestion Script
 
 Tests run against a small fixture CSV and a real BigQuery table.
 BigQuery is required — these are integration tests, not unit tests.

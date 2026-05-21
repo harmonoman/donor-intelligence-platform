@@ -1,6 +1,6 @@
 """
 Mart Build Script
-Ticket 5.2: mart_donor_summary Build
+Mart Donor Summary Builder
 
 Builds the analytics mart from identity and staging layers.
 

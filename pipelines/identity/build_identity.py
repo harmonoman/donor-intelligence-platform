@@ -1,6 +1,6 @@
 """
 Identity Resolution Build Script
-Ticket 4.2 — dim_donors Core Matching Logic
+dim_donors Core Matching Logic
 
 Assigns stable donor identities to normalized staging records.
 
@@ -302,7 +302,7 @@ def run_identity_resolution(
     project_id: str,
     source_table: str = STAGING_TABLE,
     dim_donors_table: str = DIM_DONORS_TABLE,
-    unresolved_table: str = UNRESOLVED_TABLE, # reserved — not populated until post-MVP
+    unresolved_table: str = UNRESOLVED_TABLE,
     execution_date: date = None,
 ) -> int:
     """
@@ -310,7 +310,7 @@ def run_identity_resolution(
     Returns number of records written to dim_donors.
     """
     ensure_dim_donors_exists(client, project_id, dim_donors_table)
-    ensure_unresolved_exists(client, project_id, unresolved_table)  # reserved — not populated until post-MVP
+    ensure_unresolved_exists(client, project_id, unresolved_table)
 
     identity_sql = build_identity_sql(
         project_id, source_table, execution_date

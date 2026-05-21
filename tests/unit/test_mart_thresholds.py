@@ -1,6 +1,6 @@
 """
 Unit tests for mart engagement score thresholds.
-Ticket 5.1 — Engagement Score Threshold Definition
+Engagement Score Threshold Definition
 
 Tests validate:
 - Thresholds are defined as constants

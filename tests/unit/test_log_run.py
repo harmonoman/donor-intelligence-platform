@@ -1,6 +1,6 @@
 """
 Unit tests for pipeline run logging utility.
-Ticket 6.1: pipeline_run_log Metadata Table
+pipeline_run_log Metadata Table
 
 Tests validate:
 - log_run() inserts one row per call

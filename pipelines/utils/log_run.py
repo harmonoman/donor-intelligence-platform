@@ -1,12 +1,8 @@
 """
 Pipeline Run Logging Utility
-Ticket 6.1: pipeline_run_log Metadata Table
 
 Inserts one row into metadata.pipeline_run_log per call.
 Append-only. No updates. No merges. No deletes.
-
-Think of each call as leaving a breadcrumb:
-  "Task X ran at time T, processed N rows, and PASSED."
 
 Usage:
     from pipelines.utils.log_run import log_run

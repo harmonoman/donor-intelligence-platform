@@ -1,6 +1,6 @@
 """
 Staging Build Script
-Ticket 3.2 — Staging SQL + Load Script
+Staging SQL + Load Script
 
 Transforms raw FEC contributions into a clean staging table.
 
@@ -207,10 +207,6 @@ def merge_into_staging(
         Staging accumulates across dates — MERGE prevents duplicates
         while allowing reruns to update existing records safely.
     """
-    # MERGE key: SUB_ID only
-    # Fallback key (donor_name_normalized + contribution_date + contribution_amount)
-    # was retired — SUB_ID confirmed 100% populated across 1.98M rows
-    # See: docs/data-exploration.md — MERGE Key Decision
     if df.empty:
         print("  No records to merge.")
         return 0
@@ -360,8 +356,7 @@ def run_staging_chunked(
         end = min(offset + chunk_size, total_rows)
         print(f"  Chunk {chunk_num}: rows {offset + 1:,} → {end:,}...")
 
-        # ROW_NUMBER() OVER (ORDER BY SUB_ID) sorts the full partition before paginating.
-        # Acceptable for 15M rows. At 100M+ rows consider alternative pagination strategies.
+        # ROW_NUMBER() pagination is acceptable at 15M rows. Revisit at 100M+.
         chunk_query = f"""
             WITH numbered AS (
                 SELECT

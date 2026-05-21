@@ -1,6 +1,6 @@
 """
 Hello World DAG
-Ticket 1.3 — Airflow Local Environment Setup
+Airflow Local Environment Setup
 
 Purpose:
     Validate that Airflow is running correctly and DAGs are discoverable.

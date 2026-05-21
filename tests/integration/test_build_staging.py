@@ -1,6 +1,6 @@
 """
 Integration tests for staging build script.
-Ticket 3.2 — Staging SQL + Load Script
+Staging SQL + Load Script
 
 Tests validate:
 - Normalization is applied correctly

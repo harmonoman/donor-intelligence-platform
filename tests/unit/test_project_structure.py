@@ -1,6 +1,6 @@
 """
 Project structure validation test.
-Ticket 1.4 — Project Directory Scaffold
+Project Directory Scaffold
 
 Verifies that all required directories exist.
 Fails fast if someone accidentally deletes or renames a core directory.

@@ -1,6 +1,6 @@
 """
 Mart Engagement Score Thresholds
-Ticket 5.1 — Engagement Score Threshold Definition
+Engagement Score Threshold Definition
 
 Thresholds grounded in observed distributions across 3,160,099 donors
 from 28M FEC contributions (Aug 2023 — Mar 2026).

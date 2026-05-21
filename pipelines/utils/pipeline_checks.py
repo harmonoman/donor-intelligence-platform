@@ -1,6 +1,5 @@
 """
 Pipeline Validation Checks
-Ticket 6.2: Full Pipeline DAG
 
 Lightweight validation functions called by check tasks in the DAG.
 Each function raises an exception on failure. No silent failures.
@@ -10,7 +9,6 @@ These are not complex data quality rules. They are basic sanity checks:
 - Are critical fields populated?
 - Is the mart grain intact?
 
-Think of these as the inspection checkpoints on the factory assembly line.
 """
 
 from google.cloud import bigquery

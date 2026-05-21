@@ -1,6 +1,6 @@
 """
 Integration tests for mart layer quality checks.
-Ticket 7.4: Mart Layer Quality Checks
+Mart Layer Quality Checks
 
 Tests validate:
 - Valid dataset passes all three checks
