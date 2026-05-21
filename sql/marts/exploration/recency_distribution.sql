@@ -1,5 +1,4 @@
 -- Recency Distribution
--- Ticket 5.1 — Engagement Score Threshold Definition
 --
 -- Measures how recently each donor last contributed.
 -- Reference date: max contribution_date in dataset (not current_date)

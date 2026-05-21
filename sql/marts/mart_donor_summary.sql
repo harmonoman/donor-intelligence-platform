@@ -1,10 +1,10 @@
 -- Mart: mart_donor_summary
--- Ticket 5.2: mart_donor_summary Build
+
 --
 -- Grain: one row per donor_id
 -- Source: core.dim_donors joined to staging.stg_contributions
 --
--- Engagement scoring uses thresholds from Ticket 5.1:
+-- Engagement scoring thresholds defined in pipelines/marts/thresholds.py:
 --   Recency:   recent <= 90 days, active <= 365 days, lapsed > 365 days
 --   Frequency: high >= 10, medium >= 2, low = 1
 --   Monetary:  high >= $1000, medium >= $100, low < $100

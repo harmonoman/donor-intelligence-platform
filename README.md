@@ -57,7 +57,7 @@ Two full election cycles ingested:
 |---|---|---|---|
 | itcont_2024.txt | 2023-2024 | 15,264,403 | Aug 2023 to Nov 2024 |
 | itcont_2026.txt | 2025-2026 | 12,737,488 | Feb 2025 to Mar 2026 |
-| fec_sample.csv | 2025-2026 sample | 50,000 | Dec 2025 (test fixture) |
+| fec_sample.csv | 2025-2026 sample | 50,000 | Dec 2025 (test fixture, donor names aliased via Faker) |
 
 Total: approximately 28 million rows across three BigQuery partitions.
 
@@ -214,6 +214,8 @@ Matching rules applied in strict order:
 
 donor_id = TO_HEX(MD5(canonical_key)), deterministic across all runs.
 
+Identity resolution SQL: `sql/core/identity_resolution.sql`
+
 Match rule distribution on real data:
 
 | Partition | rule1 | rule2 | no_match |
@@ -289,8 +291,7 @@ ORDER BY total_contributions DESC
 ```
 
 Validated against real FEC data. Returns recognizable major donors
-(Bloomberg, Griffin, Simons, Chan) at realistic contribution amounts
-with correct lapsed status.
+at realistic contribution amounts with correct lapsed status.
 
 ---
 
@@ -314,9 +315,9 @@ Grounded in observed distributions. See docs/mart-definitions.md.
    always resolves to same donor_id. Tracked as Stretch Goal Phase 1.
 
 2. Donors contributing from multiple addresses receive separate donor_ids.
-   Kenneth Griffin appears twice in the mart (ZIP 33131 Miami and
-   ZIP 60611 Chicago). This is expected behavior of deterministic batch
-   matching and is documented in docs/mart-definitions.md.
+   A donor contributing from two addresses will appear twice in the mart.
+   This is expected behavior of deterministic batch matching and is
+   documented in docs/mart-definitions.md.
 
 3. Rule 2 false merge risk: donors with the same name in the same city
    but no ZIP may merge incorrectly. Affects approximately 0.05% of
@@ -332,11 +333,16 @@ Add a third SQL pass that evaluates new records against existing dim_donors.
 Detects true collisions and populates dim_donors_unresolved.
 Estimated effort: 3-5 days. No schema changes required.
 
-### Phase 2: Bayesian Probabilistic Matching via Splink (Post-Demo)
+### Phase 2: BigQuery ML Probabilistic Matching (Post-Demo)
 
-Implements Fellegi-Sunter probabilistic record linkage for name variation
-handling. Runs natively on BigQuery. Adds match_rule = rule4_splink.
-Estimated effort: 1-2 weeks. No schema changes required.
+Implements Naive Bayes classifier on candidate record pairs using BigQuery ML.
+Fellegi-Sunter equivalent. No new infrastructure required.
+Estimated effort: 2-3 weeks. match_rule extended with rule3_bqml.
+
+### Phase 3: Splink Fellegi-Sunter with EM Training (Post-Demo)
+
+Unsupervised expectation-maximization implementation via Splink BigQuery backend.
+Estimated effort: 4-6 weeks. No schema changes required.
 
 See docs/ for the full engineering direction report.
 
@@ -413,7 +419,7 @@ donor-intelligence-platform/
 ├── sql/
 │   ├── raw/             # Raw table schema
 │   ├── staging/         # Staging SQL reference
-│   ├── core/            # dim_donors schema reference
+│   ├── core/            # dim_donors schema and identity resolution SQL
 │   ├── marts/           # Mart SQL and exploration queries
 │   └── metadata/        # pipeline_run_log schema reference
 ├── tests/
@@ -430,7 +436,7 @@ donor-intelligence-platform/
 ├── dags/                # Airflow DAGs
 ├── scripts/             # Pipeline orchestration scripts
 └── data/
-    ├── fec_sample.csv   # 50k row test fixture
+    ├── fec_sample.csv   # 50k row test fixture (donor names aliased via Faker)
     └── indiv_header_file.csv
 ```
 
@@ -462,4 +468,4 @@ Explicitly excluded from current implementation:
 | Epic 5: Analytics Mart | Complete | RFM scoring, lapsed donor use case |
 | Epic 6: Airflow Orchestration | Complete | 8-task fail-fast DAG, verified end-to-end |
 | Epic 7: Data Quality Framework | Complete | Quality gates at every layer |
-| Epic 8: Demo Readiness | In Progress | Documentation and demo prep |
+| Epic 8: Demo Readiness | Complete | Code cleanup, demo script, name aliasing |
