@@ -61,18 +61,18 @@ def load_raw_data(
         WHERE _load_date = DATE('{execution_date.isoformat()}')
     """
     print(f"  Loading raw data for {execution_date}...")
-    df = client.query(query).to_dataframe()
+    raw_partition = client.query(query).to_dataframe()
 
     # Convert _load_date from datetime.date to string immediately
     # Prevents PyArrow serialization errors downstream
-    if "_load_date" in df.columns:
-        df["_load_date"] = df["_load_date"].astype(str)
+    if "_load_date" in raw_partition.columns:
+        raw_partition["_load_date"] = raw_partition["_load_date"].astype(str)
 
-    print(f"  Raw rows loaded: {len(df):,}")
-    return df
+    print(f"  Raw rows loaded: {len(raw_partition):,}")
+    return raw_partition
 
 
-def filter_individuals(df: pd.DataFrame) -> pd.DataFrame:
+def filter_individuals(raw_contributions: pd.DataFrame) -> pd.DataFrame:
     """
     Filter to individual donors only (ENTITY_TP = 'IND').
 
@@ -82,34 +82,34 @@ def filter_individuals(df: pd.DataFrame) -> pd.DataFrame:
 
     Documented in: docs/data-exploration.md — Staging Prerequisites
     """
-    before = len(df)
-    df = df[df["ENTITY_TP"] == "IND"].copy()
-    after = len(df)
+    before = len(raw_contributions)
+    filtered = raw_contributions[raw_contributions["ENTITY_TP"] == "IND"].copy()
+    after = len(filtered)
     print(f"  ENTITY_TP filter: {before:,} → {after:,} rows (removed {before - after:,} non-IND)")
-    return df
+    return filtered
 
 
-def parse_contribution_date(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
+def parse_contribution_date(contributions: pd.DataFrame) -> pd.DataFrame:
+    contributions = contributions.copy()
     parsed = pd.to_datetime(
-        df["TRANSACTION_DT"],
+        contributions["TRANSACTION_DT"],
         format="%m%d%Y",
         errors="coerce",
     )
     # Convert to string explicitly — None for unparseable dates
-    df["contribution_date"] = [
+    contributions["contribution_date"] = [
         d.strftime("%Y-%m-%d") if pd.notna(d) else None
         for d in parsed
     ]
 
-    null_dates = sum(1 for d in df["contribution_date"] if d is None)
+    null_dates = sum(1 for d in contributions["contribution_date"] if d is None)
     if null_dates > 0:
         print(f"  ⚠️  {null_dates:,} records with unparseable TRANSACTION_DT")
 
-    return df
+    return contributions
 
 
-def apply_normalization(df: pd.DataFrame) -> pd.DataFrame:
+def apply_normalization(contributions: pd.DataFrame) -> pd.DataFrame:
     """
     Apply shared normalization utility to name, address, and ZIP fields.
 
@@ -117,37 +117,37 @@ def apply_normalization(df: pd.DataFrame) -> pd.DataFrame:
     This exact same utility will be used in identity resolution.
     Consistency between layers is guaranteed by using one function.
     """
-    df = df.copy()
+    contributions = contributions.copy()
 
-    df["donor_name_normalized"] = df["NAME"].apply(normalize_name)
-    df["donor_address_normalized"] = (
-        df["CITY"].fillna("") + " " + df["STATE"].fillna("")
+    contributions["donor_name_normalized"] = contributions["NAME"].apply(normalize_name)
+    contributions["donor_address_normalized"] = (
+        contributions["CITY"].fillna("") + " " + contributions["STATE"].fillna("")
     ).apply(normalize_address)
-    df["zip_normalized"] = df["ZIP_CODE"].apply(normalize_zip)
+    contributions["zip_normalized"] = contributions["ZIP_CODE"].apply(normalize_zip)
 
-    return df
+    return contributions
 
 
-def prepare_staging_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_staging_dataframe(contributions: pd.DataFrame) -> pd.DataFrame:
     """
     Select and rename fields for the staging table.
     Preserves raw fields alongside normalized fields for auditability.
     """
     return pd.DataFrame({
-        "sub_id":                   df["SUB_ID"],
-        "cmte_id":                  df["CMTE_ID"],
-        "tran_id":                  df["TRAN_ID"],
-        "name_raw":                 df["NAME"],
-        "city_raw":                 df["CITY"],
-        "state":                    df["STATE"],
-        "zip_raw":                  df["ZIP_CODE"],
-        "donor_name_normalized":    df["donor_name_normalized"],
-        "donor_address_normalized": df["donor_address_normalized"],
-        "zip_normalized":           df["zip_normalized"],
-        "contribution_amount": df["TRANSACTION_AMT"].astype(str),  # string → cast to NUMERIC in MERGE
-        "contribution_date":        df["contribution_date"],
-        "entity_type":              df["ENTITY_TP"],
-        "_load_date":               df["_load_date"].astype(str),  # convert date → string
+        "sub_id":                   contributions["SUB_ID"],
+        "cmte_id":                  contributions["CMTE_ID"],
+        "tran_id":                  contributions["TRAN_ID"],
+        "name_raw":                 contributions["NAME"],
+        "city_raw":                 contributions["CITY"],
+        "state":                    contributions["STATE"],
+        "zip_raw":                  contributions["ZIP_CODE"],
+        "donor_name_normalized":    contributions["donor_name_normalized"],
+        "donor_address_normalized": contributions["donor_address_normalized"],
+        "zip_normalized":           contributions["zip_normalized"],
+        "contribution_amount":      contributions["TRANSACTION_AMT"].astype(str),  # string → cast to NUMERIC in MERGE
+        "contribution_date":        contributions["contribution_date"],
+        "entity_type":              contributions["ENTITY_TP"],
+        "_load_date":               contributions["_load_date"].astype(str),  # convert date → string
     })
 
 
@@ -194,7 +194,7 @@ def ensure_staging_table_exists(
 def merge_into_staging(
     client: bigquery.Client,
     project_id: str,
-    df: pd.DataFrame,
+    contributions: pd.DataFrame,
 ) -> int:
     """
     MERGE normalized records into staging table.
@@ -206,7 +206,7 @@ def merge_into_staging(
         Staging accumulates across dates — MERGE prevents duplicates
         while allowing reruns to update existing records safely.
     """
-    if df.empty:
+    if contributions.empty:
         print("  No records to merge.")
         return 0
 
@@ -239,7 +239,7 @@ def merge_into_staging(
     )
 
     client.load_table_from_dataframe(
-        df, temp_table_id, job_config=temp_job_config
+        contributions, temp_table_id, job_config=temp_job_config
     ).result(timeout=300)
 
     # MERGE from temp into staging
@@ -285,8 +285,8 @@ def merge_into_staging(
     # Clean up temp table
     client.delete_table(temp_table_id, not_found_ok=True)
 
-    print(f"  Merged {len(df):,} records into {STAGING_TABLE}")
-    return len(df)
+    print(f"  Merged {len(contributions):,} records into {STAGING_TABLE}")
+    return len(contributions)
 
 
 def count_staging_rows(
@@ -315,13 +315,13 @@ def run_staging(
     """
     ensure_staging_table_exists(client, project_id)
 
-    df = load_raw_data(client, project_id, execution_date)
-    df = filter_individuals(df)
-    df = parse_contribution_date(df)
-    df = apply_normalization(df)
-    df = prepare_staging_dataframe(df)
+    contributions = load_raw_data(client, project_id, execution_date)
+    contributions = filter_individuals(contributions)
+    contributions = parse_contribution_date(contributions)
+    contributions = apply_normalization(contributions)
+    contributions = prepare_staging_dataframe(contributions)
 
-    return merge_into_staging(client, project_id, df)
+    return merge_into_staging(client, project_id, contributions)
 
 
 def run_staging_chunked(
