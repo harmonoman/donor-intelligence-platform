@@ -1,6 +1,5 @@
 """
 Identity Resolution Build Script
-dim_donors Core Matching Logic
 
 Assigns stable donor identities to normalized staging records.
 

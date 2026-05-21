@@ -1,6 +1,5 @@
 """
 Shared Normalization Utility
-Shared Normalization Utility
 
 This is the SINGLE SOURCE OF TRUTH for all normalization logic.
 

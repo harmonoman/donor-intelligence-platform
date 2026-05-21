@@ -1,6 +1,5 @@
 """
 Identity Layer Quality Checks
-Identity Layer Quality Checks
 
 Three checks run immediately after identity resolution:
     1. sub_id uniqueness: each sub_id must appear exactly once in dim_donors

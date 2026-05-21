@@ -1,6 +1,5 @@
 """
 Donor Intelligence Platform: Full Pipeline DAG
-Donor Pipeline DAG
 
 Orchestrates the complete pipeline in strict fail-fast order:
 

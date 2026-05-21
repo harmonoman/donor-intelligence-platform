@@ -1,6 +1,5 @@
 """
 Staging Build Script
-Staging SQL + Load Script
 
 Transforms raw FEC contributions into a clean staging table.
 

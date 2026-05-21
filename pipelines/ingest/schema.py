@@ -1,6 +1,5 @@
 """
 BigQuery schema definition for raw.fec_contributions
-Raw Table Schema Definition
 
 This schema reflects the REAL FEC individual contributions file structure
 as confirmed during data exploration.

@@ -1,6 +1,5 @@
 """
 Mart Build Script
-Mart Donor Summary Builder
 
 Builds the analytics mart from identity and staging layers.
 

@@ -1,6 +1,5 @@
 """
 Raw FEC Ingestion Script
-Raw Ingestion Script
 
 Loads FEC contribution CSV into BigQuery raw layer.
 

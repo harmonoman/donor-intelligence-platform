@@ -1,6 +1,5 @@
 """
 Raw Layer Quality Checks
-Raw Layer Quality Checks
 
 Three checks run immediately after raw ingestion:
     1. Row count: partition must have rows
