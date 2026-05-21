@@ -1,6 +1,6 @@
 """
 Normalization utility tests.
-Ticket 3.1 — Shared Normalization Utility
+Shared Normalization Utility
 
 These tests define the normalization CONTRACT.
 If any test changes, the contract has changed.

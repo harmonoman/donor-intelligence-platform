@@ -1,5 +1,4 @@
 -- Committee Name Lookup
--- Ticket 5.1 — Exploration
 --
 -- Surfaces committee IDs and contribution counts from staging.
 -- FEC does not provide committee names in the individual contributions file.

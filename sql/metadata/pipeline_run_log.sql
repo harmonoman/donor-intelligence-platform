@@ -3,7 +3,6 @@
 -- Do not execute this file directly.
 
 -- Metadata Table: pipeline_run_log
--- Ticket 6.1: pipeline_run_log Metadata Table
 --
 -- Append-only audit trail for every pipeline task execution.
 -- Think of this as the flight recorder for the pipeline.

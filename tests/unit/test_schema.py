@@ -1,6 +1,6 @@
 """
 Schema validation tests.
-Ticket 2.1 — Raw Table Schema Definition
+Raw Table Schema Definition
 
 Tests validate:
 - Schema is importable and is a list
@@ -14,7 +14,7 @@ from pipelines.ingest.schema import RAW_FEC_SCHEMA
 # Valid BigQuery field types for this project
 VALID_BQ_TYPES = {"STRING", "INTEGER", "FLOAT", "NUMERIC", "DATE", "TIMESTAMP", "BOOLEAN"}
 
-# All 21 real FEC column names confirmed from data exploration (Ticket 1.1)
+# All 21 real FEC column names confirmed from data exploration
 EXPECTED_FEC_COLUMNS = [
     "CMTE_ID",
     "AMNDT_IND",

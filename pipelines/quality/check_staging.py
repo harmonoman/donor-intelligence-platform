@@ -1,6 +1,5 @@
 """
 Staging Layer Quality Checks
-Ticket 7.2: Staging Layer Quality Checks
 
 Three checks run immediately after staging build:
     1. Row count consistency: staging must be 95-100% of raw row count

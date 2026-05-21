@@ -1,6 +1,5 @@
 """
 Identity Resolution Build Script
-Ticket 4.2 — dim_donors Core Matching Logic
 
 Assigns stable donor identities to normalized staging records.
 
@@ -47,6 +46,7 @@ from pipelines.utils.env import get_required_env, load_env
 # ---------------------------------------------------------------------------
 
 DIM_DONORS_TABLE = "core.dim_donors"
+IDENTITY_SQL_PATH = Path("sql/core/identity_resolution.sql")
 UNRESOLVED_TABLE = "core.dim_donors_unresolved"
 STAGING_TABLE = "staging.stg_contributions"
 
@@ -143,7 +143,7 @@ def load_fixture_to_staging_temp(
                 "_load_date":               execution_date.isoformat(),
             })
 
-    df = pd.DataFrame(rows)
+    fixture_records = pd.DataFrame(rows)
 
     full_table_id = f"{project_id}.{temp_table}"
     schema = [
@@ -157,152 +157,20 @@ def load_fixture_to_staging_temp(
         schema=schema,
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
-    client.load_table_from_dataframe(df, full_table_id, job_config=job_config).result(timeout=300)
-    print(f"  Loaded {len(df)} fixture records → {full_table_id}")
+    client.load_table_from_dataframe(fixture_records, full_table_id, job_config=job_config).result(timeout=300)
+    print(f"  Loaded {len(fixture_records)} fixture records → {full_table_id}")
 
 
 # ---------------------------------------------------------------------------
 # Core identity resolution SQL
 # ---------------------------------------------------------------------------
 
-def build_identity_sql(
-    project_id: str,
-    source_table: str,
-    execution_date: date,
-) -> str:
-    """
-    Generate the identity resolution SQL.
-
-    Two-pass matching logic:
-    Pass 1 — Rule 1: match on donor_name_normalized + zip_normalized
-    Pass 2 — Rule 2: for records with no ZIP, look up whether a Rule 1
-              record shares the same name + address. If yes → inherit
-              that canonical key (same donor_id). If no → new donor_id.
-
-    Key principle:
-    Same canonical key = same donor. Always.
-    In a deterministic batch hash system, two records sharing a
-    canonical key cannot be distinguished as "same person, two
-    contributions" vs "two different people with identical fields."
-    Both resolve to the same donor_id. This is a known limitation
-    of deterministic matching on available FEC fields.
-
-    donor_id = MD5(canonical_key) — deterministic and reproducible.
-    identity_conflict is always FALSE in this implementation.
-    """
-    return f"""
-    -- Step 1: Load source records
-    WITH source AS (
-        SELECT
-            sub_id,
-            donor_name_normalized,
-            donor_address_normalized,
-            zip_normalized,
-            CAST(_load_date AS STRING) AS _load_date
-        FROM `{project_id}.{source_table}`
-        WHERE CAST(_load_date AS STRING) = '{execution_date.isoformat()}'
-    ),
-
-    -- Pass 1: Rule 1 — match on name + ZIP
-    rule1_matches AS (
-        SELECT
-            sub_id,
-            donor_name_normalized,
-            donor_address_normalized,
-            zip_normalized,
-            _load_date,
-            CONCAT(donor_name_normalized, '|zip:', zip_normalized) AS canonical_key,
-            'rule1' AS match_rule
-        FROM source
-        WHERE zip_normalized IS NOT NULL AND zip_normalized != ''
-    ),
-
-    -- Pass 2: Rule 2 candidates — records with no ZIP
-    rule2_candidates AS (
-        SELECT
-            sub_id,
-            donor_name_normalized,
-            donor_address_normalized,
-            zip_normalized,
-            _load_date
-        FROM source
-        WHERE zip_normalized IS NULL OR zip_normalized = ''
-    ),
-
-    -- Pass 2: Rule 2 — look up whether a Rule 1 record shares name + address
-    rule2_matches AS (
-        SELECT
-            r2.sub_id,
-            r2.donor_name_normalized,
-            r2.donor_address_normalized,
-            r2.zip_normalized,
-            r2._load_date,
-            COALESCE(
-                MIN(r1.canonical_key),
-                CASE
-                    WHEN r2.donor_address_normalized IS NOT NULL
-                         AND r2.donor_address_normalized != ''
-                        THEN CONCAT(r2.donor_name_normalized, '|addr:', r2.donor_address_normalized)
-                    ELSE CONCAT(r2.donor_name_normalized, '|id:', r2.sub_id)
-                END
-            ) AS canonical_key,
-            CASE
-                WHEN MIN(r1.canonical_key) IS NOT NULL THEN 'rule2'
-                WHEN r2.donor_address_normalized IS NOT NULL
-                     AND r2.donor_address_normalized != '' THEN 'rule2'
-                ELSE 'no_match'
-            END AS match_rule
-        FROM rule2_candidates r2
-        LEFT JOIN rule1_matches r1
-            ON r2.donor_name_normalized = r1.donor_name_normalized
-            AND r2.donor_address_normalized = r1.donor_address_normalized
-            AND r1.donor_address_normalized IS NOT NULL
-            AND r1.donor_address_normalized != ''
-        GROUP BY
-            r2.sub_id, r2.donor_name_normalized, r2.donor_address_normalized,
-            r2.zip_normalized, r2._load_date
-    ),
-
-    -- Combine both passes
-    keyed AS (
-        SELECT * FROM rule1_matches
-        UNION ALL
-        SELECT * FROM rule2_matches
-    ),
-
-    -- Step 3: Generate deterministic donor_id from canonical_key
-    with_donor_id AS (
-        SELECT
-            *,
-            TO_HEX(MD5(canonical_key)) AS donor_id
-        FROM keyed
-    ),
-
-    -- Step 4: All records sharing a canonical key resolve to the same donor_id
-    -- identity_conflict is always FALSE — same key always means same donor
-    final AS (
-        SELECT
-            w.donor_id,
-            w.sub_id,
-            w.donor_name_normalized,
-            w.donor_address_normalized,
-            w.zip_normalized,
-            w.match_rule,
-            CAST(w._load_date AS STRING) AS _load_date,
-            FALSE AS identity_conflict
-        FROM with_donor_id w
-    )
-
-    SELECT * FROM final
-    """
-
-
 def run_identity_resolution(
     client: bigquery.Client,
     project_id: str,
     source_table: str = STAGING_TABLE,
     dim_donors_table: str = DIM_DONORS_TABLE,
-    unresolved_table: str = UNRESOLVED_TABLE, # reserved — not populated until post-MVP
+    unresolved_table: str = UNRESOLVED_TABLE,
     execution_date: date = None,
 ) -> int:
     """
@@ -310,11 +178,14 @@ def run_identity_resolution(
     Returns number of records written to dim_donors.
     """
     ensure_dim_donors_exists(client, project_id, dim_donors_table)
-    ensure_unresolved_exists(client, project_id, unresolved_table)  # reserved — not populated until post-MVP
+    ensure_unresolved_exists(client, project_id, unresolved_table)
 
-    identity_sql = build_identity_sql(
-        project_id, source_table, execution_date
-    )
+    if not IDENTITY_SQL_PATH.exists():
+        raise FileNotFoundError(f"Identity SQL not found at: {IDENTITY_SQL_PATH}")
+    identity_sql = IDENTITY_SQL_PATH.read_text()
+    identity_sql = identity_sql.replace("{PROJECT_ID}", project_id)
+    identity_sql = identity_sql.replace("{SOURCE_TABLE}", source_table)
+    identity_sql = identity_sql.replace("{EXECUTION_DATE}", execution_date.isoformat())
 
     # Write results to temp table
     temp_table = f"{project_id}.core._dim_donors_temp"

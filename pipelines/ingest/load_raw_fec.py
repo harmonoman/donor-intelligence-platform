@@ -1,6 +1,5 @@
 """
 Raw FEC Ingestion Script
-Ticket 2.2 — Raw Ingestion Script
 
 Loads FEC contribution CSV into BigQuery raw layer.
 
@@ -20,10 +19,6 @@ Idempotency guarantee:
     Each execution_date is a separate BigQuery partition.
     WRITE_TRUNCATE overwrites that partition only.
     Rerunning the same date = same result, no duplicates.
-
-    Think of it like a dated drawer in a filing cabinet:
-    When you rerun, you empty that drawer and refill it.
-    You never stack a second copy on top.
 """
 
 import argparse
@@ -67,31 +62,31 @@ def load_csv_to_dataframe(csv_path: Path) -> pd.DataFrame:
             f"Run scripts/explore_fec.py to generate the sample."
         )
 
-    df = pd.read_csv(
+    raw_contributions = pd.read_csv(
         csv_path,
         delimiter=DELIMITER,
         encoding=ENCODING,
-        dtype=str,              # read all fields as string — BigQuery schema enforces types at load
-        keep_default_na=False,  # preserve empty strings as empty, not NaN
+        dtype=str,
+        keep_default_na=False,
     )
 
-    print(f"  Loaded {len(df):,} rows from {csv_path}")
-    return df
+    print(f"  Loaded {len(raw_contributions):,} rows from {csv_path}")
+    return raw_contributions
 
 
-def add_load_date_column(df: pd.DataFrame, execution_date: date) -> pd.DataFrame:
+def add_load_date_column(raw_contributions: pd.DataFrame, execution_date: date) -> pd.DataFrame:
     """
     Add _load_date column to dataframe.
     Every row in a single load gets the same execution date.
     This is the partition key — it determines which partition gets overwritten.
     """
-    df = df.copy()
-    df["_load_date"] = execution_date
-    return df
+    raw_contributions = raw_contributions.copy()
+    raw_contributions["_load_date"] = execution_date
+    return raw_contributions
 
 
 def load_to_bigquery(
-    df: pd.DataFrame,
+    raw_contributions: pd.DataFrame,
     project_id: str,
     table_id: str,
     execution_date: date,
@@ -123,10 +118,10 @@ def load_to_bigquery(
         skip_leading_rows=0,  # dataframe has no header row when loaded
     )
 
-    load_job = client.load_table_from_dataframe(df, full_table_id, job_config=job_config)
+    load_job = client.load_table_from_dataframe(raw_contributions, full_table_id, job_config=job_config)
     load_job.result(timeout=300)  # 5 minute timeout — raises on failure or timeout
 
-    rows_loaded = len(df)
+    rows_loaded = len(raw_contributions)
     print(f"  Loaded {rows_loaded:,} rows → {full_table_id}")
     return rows_loaded
 
@@ -339,9 +334,9 @@ def main():
         )
     else:
         # Standard loading — for small files (fec_sample.csv, fixtures)
-        df = load_csv_to_dataframe(args.csv_path)
-        df = add_load_date_column(df, execution_date)
-        rows_loaded = load_to_bigquery(df, project_id, args.table_id, execution_date, client)
+        raw_contributions = load_csv_to_dataframe(args.csv_path)
+        raw_contributions = add_load_date_column(raw_contributions, execution_date)
+        rows_loaded = load_to_bigquery(raw_contributions, project_id, args.table_id, execution_date, client)
 
     # Verify
     bq_count = count_rows_in_partition(client, project_id, args.table_id, execution_date)

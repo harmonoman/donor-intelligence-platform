@@ -1,6 +1,6 @@
 """
 Unit tests for mart_donor_summary build logic.
-Ticket 5.2: mart_donor_summary Build
+mart_donor_summary Build
 
 Tests validate:
 - Engagement score formula correctness

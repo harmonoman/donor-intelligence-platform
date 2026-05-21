@@ -1,6 +1,6 @@
 """
 Integration tests for identity layer quality checks.
-Ticket 7.3: Identity Layer Quality Checks
+Identity Layer Quality Checks
 
 Tests validate:
 - Valid dataset passes all three checks

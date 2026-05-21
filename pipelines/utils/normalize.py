@@ -1,6 +1,5 @@
 """
 Shared Normalization Utility
-Ticket 3.1 — Shared Normalization Utility
 
 This is the SINGLE SOURCE OF TRUTH for all normalization logic.
 

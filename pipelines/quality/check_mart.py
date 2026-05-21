@@ -1,6 +1,5 @@
 """
 Mart Layer Quality Checks
-Ticket 7.4: Mart Layer Quality Checks
 
 Three checks run immediately after mart build:
     1. Grain check: COUNT(*) == COUNT(DISTINCT donor_id)
@@ -13,8 +12,7 @@ Architecture note:
     dim_donors donors with at least one non-null contribution_date.
 
     This was discovered during implementation: 2 donors in dim_donors
-    (filipiak karolina ZIP 95054 and pierson ryan ZIP 95054) have 100%
-    null contribution_date values and are correctly excluded from the mart.
+    Two donors with 100% null contribution_date values are correctly excluded from the mart.
 
     Real data:
         mart_donor_summary:  3,160,102 rows

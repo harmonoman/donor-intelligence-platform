@@ -1,6 +1,6 @@
 """
 Unit tests for donor_pipeline DAG structure.
-Ticket 6.2: Full Pipeline DAG
+Full Pipeline DAG
 
 Tests validate:
 - DAG loads without errors

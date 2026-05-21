@@ -1,5 +1,4 @@
 -- Staging Table: stg_contributions
--- Ticket 3.2 — Staging SQL + Load Script
 --
 -- This table contains cleaned and normalized FEC contribution records.
 -- Normalization is applied in Python (pipelines/utils/normalize.py)

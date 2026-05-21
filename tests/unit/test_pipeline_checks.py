@@ -1,6 +1,6 @@
 """
 Unit tests for pipeline validation check functions.
-Ticket 6.2: Full Pipeline DAG
+Full Pipeline DAG
 
 Tests validate that check functions:
 - Return row counts when data exists

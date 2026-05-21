@@ -1,5 +1,4 @@
 -- Monetary Distribution
--- Ticket 5.1 — Engagement Score Threshold Definition
 --
 -- Total contribution amount per donor across all time.
 -- Uses NUMERIC type — no floating point precision issues.

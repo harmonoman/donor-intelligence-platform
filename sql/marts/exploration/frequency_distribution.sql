@@ -1,5 +1,4 @@
 -- Frequency Distribution
--- Ticket 5.1 — Engagement Score Threshold Definition
 --
 -- Counts total contributions per donor across all time.
 -- High frequency = loyal recurring donor.

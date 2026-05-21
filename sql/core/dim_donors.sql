@@ -1,5 +1,5 @@
 -- Core Table: dim_donors
--- Tickets 4.2 + 4.3 — Identity Resolution Layer
+-- Identity Resolution Layer
 --
 -- NOTE: This file is documentation only — the table is created
 -- programmatically via ensure_dim_donors_exists() in build_identity.py.

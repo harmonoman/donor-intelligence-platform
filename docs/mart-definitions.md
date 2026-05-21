@@ -171,7 +171,7 @@ MONETARY_MEDIUM_MAX = 999
 
 5. **Donors contributing from multiple addresses may appear as separate rows.**
    The batch hash identity resolution system assigns separate donor_ids to
-   contributions with different name+ZIP combinations. Kenneth Griffin appears
-   twice in the mart (ZIP 33131 Miami and ZIP 60611 Chicago) because he
-   donated from two addresses. This is a known limitation of deterministic
-   matching documented in docs/identity-resolution-fixtures.md.
+   contributions with different name+ZIP combinations. A donor contributing
+   from two addresses across election cycles will appear twice in the mart.
+   This is a known limitation of deterministic matching documented in
+   docs/identity-resolution-fixtures.md.

@@ -1,6 +1,5 @@
 """
-Shared environment utility.
-Ticket 1.2 — GCP Project + BigQuery Environment Setup
+Shared Environment Utility
 
 Provides:
     - load_env(): loads .env file into os.environ

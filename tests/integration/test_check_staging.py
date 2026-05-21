@@ -1,6 +1,6 @@
 """
 Integration tests for staging layer quality checks.
-Ticket 7.2: Staging Layer Quality Checks
+Staging Layer Quality Checks
 
 Tests validate:
 - Valid dataset passes all three checks
