@@ -178,18 +178,18 @@ ORDER BY total_contributions DESC
 LIMIT 10
 ```
 
-Expected results include recognizable major donors from real FEC data:
+Expected results from the pre-loaded full dataset (names aliased):
 
 | donor | total | last gift | days lapsed | score |
 |---|---|---|---|---|
-| mellon timothy | $56,010,300 | 2025-03-04 | 389 | 1.9 |
-| griffin kenneth c | $20,000,000 | 2023-12-28 | 821 | 1.9 |
-| bloomberg michael | $19,000,000 | 2024-05-30 | 667 | 1.6 |
-| simons james | $5,013,200 | 2023-12-14 | 835 | 1.9 |
-| chan michelle | $5,000,000 | 2024-08-15 | 590 | 1.6 |
+| williams amy | $56,010,300 | 2025-03-04 | 389 | 1.9 |
+| dawson carol | $20,000,000 | 2023-12-28 | 821 | 1.9 |
+| brown hannah | $19,000,000 | 2024-05-30 | 667 | 1.6 |
+| michael stephanie | $5,013,200 | 2023-12-14 | 835 | 1.9 |
+| johnson chelsea | $5,000,000 | 2024-08-15 | 590 | 1.6 |
 
-These are real people. These are real contribution amounts. This is
-real FEC data.
+Note: donor names have been aliased using Faker. These are real people
+from real FEC public records. Contribution amounts and dates are unmodified.
 
 ---
 
@@ -209,13 +209,10 @@ donor on three dimensions: how recently they gave, how often they gave,
 and how much they gave in total.
 
 **What the query shows:**
-Timothy Mellon gave $56 million and has not donated in 389 days. His
-engagement score is 1.9 out of 3.0. High monetary value, low recency.
-This is exactly the profile of a donor worth a personal re-engagement
-call from a senior fundraiser.
-
-Michael Bloomberg gave $19 million and has been lapsed for 667 days.
-His score is 1.6. Same pattern. Same priority.
+The top results show donors with very high total contributions and
+days_since_last_donation values above 365. High monetary value, low
+recency. This is exactly the profile of a donor worth a personal
+re-engagement call from a senior fundraiser. Same pattern. Same priority.
 
 **Why this matters:**
 Acquiring a new donor costs significantly more than re-engaging a lapsed
