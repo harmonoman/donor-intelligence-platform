@@ -94,25 +94,25 @@ def test_fixture_file_exists():
 
 
 def test_load_csv_to_dataframe():
-    df = load_csv_to_dataframe(FIXTURE_PATH)
+    raw_contributions = load_csv_to_dataframe(FIXTURE_PATH)
     expected = get_fixture_row_count()
-    assert len(df) == expected, f"Expected {expected} rows, got {len(df)}"
+    assert len(raw_contributions) == expected, f"Expected {expected} rows, got {len(raw_contributions)}"
 
 
 
 def test_add_load_date_column():
     """_load_date column is added with correct value."""
-    df = load_csv_to_dataframe(FIXTURE_PATH)
-    df = add_load_date_column(df, TEST_EXECUTION_DATE)
-    assert "_load_date" in df.columns
-    assert df["_load_date"].iloc[0] == TEST_EXECUTION_DATE
+    raw_contributions = load_csv_to_dataframe(FIXTURE_PATH)
+    raw_contributions = add_load_date_column(raw_contributions, TEST_EXECUTION_DATE)
+    assert "_load_date" in raw_contributions.columns
+    assert raw_contributions["_load_date"].iloc[0] == TEST_EXECUTION_DATE
 
 
 def test_load_date_is_same_for_all_rows():
     """Every row gets the same _load_date."""
-    df = load_csv_to_dataframe(FIXTURE_PATH)
-    df = add_load_date_column(df, TEST_EXECUTION_DATE)
-    assert df["_load_date"].nunique() == 1
+    raw_contributions = load_csv_to_dataframe(FIXTURE_PATH)
+    raw_contributions = add_load_date_column(raw_contributions, TEST_EXECUTION_DATE)
+    assert raw_contributions["_load_date"].nunique() == 1
 
 
 def test_missing_execution_date_fails():
@@ -136,9 +136,9 @@ def test_missing_execution_date_fails():
 
 def test_load_to_bigquery_succeeds(bq_client, project_id):
     """Fixture CSV loads into BigQuery test table without error."""
-    df = load_csv_to_dataframe(FIXTURE_PATH)
-    df = add_load_date_column(df, TEST_EXECUTION_DATE)
-    load_to_bigquery(df, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE, bq_client)
+    raw_contributions = load_csv_to_dataframe(FIXTURE_PATH)
+    raw_contributions = add_load_date_column(raw_contributions, TEST_EXECUTION_DATE)
+    load_to_bigquery(raw_contributions, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE, bq_client)
 
     count = count_rows_in_partition(
         bq_client, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE
@@ -164,13 +164,13 @@ def test_row_count_matches_fixture(bq_client, project_id):
 
 def test_idempotency_no_duplicates_on_rerun(bq_client, project_id):
     """Running the load twice for the same date does not duplicate rows."""
-    df = load_csv_to_dataframe(FIXTURE_PATH)
-    df = add_load_date_column(df, TEST_EXECUTION_DATE)
+    raw_contributions = load_csv_to_dataframe(FIXTURE_PATH)
+    raw_contributions = add_load_date_column(raw_contributions, TEST_EXECUTION_DATE)
 
     # Run once
-    load_to_bigquery(df, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE, bq_client)
+    load_to_bigquery(raw_contributions, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE, bq_client)
     # Run again
-    load_to_bigquery(df, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE, bq_client)
+    load_to_bigquery(raw_contributions, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE, bq_client)
 
     count = count_rows_in_partition(
         bq_client, project_id, TEST_TABLE_ID, TEST_EXECUTION_DATE
