@@ -51,7 +51,7 @@ def project_id():
 
 
 @pytest.fixture(scope="module")
-def raw_df(bq_client, project_id):
+def raw_contributions(bq_client, project_id):
     """Load raw data for the test execution date."""
     return load_raw_data(bq_client, project_id, TEST_EXECUTION_DATE)
 
@@ -60,58 +60,58 @@ def raw_df(bq_client, project_id):
 # Unit-style tests (no BigQuery required)
 # ---------------------------------------------------------------------------
 
-def test_apply_normalization_name(raw_df):
+def test_apply_normalization_name(raw_contributions):
     """donor_name_normalized is lowercase with no punctuation."""
-    df = apply_normalization(raw_df)
-    assert "donor_name_normalized" in df.columns
+    normalized = apply_normalization(raw_contributions)
+    assert "donor_name_normalized" in normalized.columns
     # No uppercase characters
-    assert df["donor_name_normalized"].str.contains(r"[A-Z]").sum() == 0
+    assert normalized["donor_name_normalized"].str.contains(r"[A-Z]").sum() == 0
     # No commas
-    assert df["donor_name_normalized"].str.contains(",").sum() == 0
+    assert normalized["donor_name_normalized"].str.contains(",").sum() == 0
 
 
-def test_apply_normalization_zip(raw_df):
+def test_apply_normalization_zip(raw_contributions):
     """zip_normalized is always 5 digits."""
-    df = apply_normalization(raw_df)
-    assert "zip_normalized" in df.columns
-    non_empty = df["zip_normalized"][df["zip_normalized"] != ""]
+    normalized = apply_normalization(raw_contributions)
+    assert "zip_normalized" in normalized.columns
+    non_empty = normalized["zip_normalized"][normalized["zip_normalized"] != ""]
     assert (non_empty.str.len() == 5).all(), (
         "All non-empty ZIP codes must be exactly 5 digits"
     )
 
 
-def test_apply_normalization_address(raw_df):
+def test_apply_normalization_address(raw_contributions):
     """donor_address_normalized is lowercase."""
-    df = apply_normalization(raw_df)
-    assert "donor_address_normalized" in df.columns
-    non_empty = df["donor_address_normalized"][df["donor_address_normalized"] != ""]
+    normalized = apply_normalization(raw_contributions)
+    assert "donor_address_normalized" in normalized.columns
+    non_empty = normalized["donor_address_normalized"][normalized["donor_address_normalized"] != ""]
     assert non_empty.str.contains(r"[A-Z]").sum() == 0
 
 
-def test_apply_normalization_address_includes_state(raw_df):
+def test_apply_normalization_address_includes_state(raw_contributions):
     """donor_address_normalized includes both city and state."""
-    df = apply_normalization(raw_df)
+    normalized = apply_normalization(raw_contributions)
     # Address should contain a space (city + state)
-    non_empty = df["donor_address_normalized"][df["donor_address_normalized"] != ""]
+    non_empty = normalized["donor_address_normalized"][normalized["donor_address_normalized"] != ""]
     assert non_empty.str.contains(" ").any(), (
         "donor_address_normalized appears to contain only city — state may be missing"
     )
 
 
-def test_filter_individuals_removes_non_ind(raw_df):
+def test_filter_individuals_removes_non_ind(raw_contributions):
     """Only IND entity type records pass the filter."""
-    df = filter_individuals(raw_df)
-    assert (df["ENTITY_TP"] == "IND").all(), (
+    filtered = filter_individuals(raw_contributions)
+    assert (filtered["ENTITY_TP"] == "IND").all(), (
         "Non-IND records found after filter"
     )
 
 
-def test_parse_contribution_date(raw_df):
+def test_parse_contribution_date(raw_contributions):
     """TRANSACTION_DT is parsed from MMDDYYYY to YYYY-MM-DD string."""
-    df = parse_contribution_date(raw_df)
-    assert "contribution_date" in df.columns
+    parsed = parse_contribution_date(raw_contributions)
+    assert "contribution_date" in parsed.columns
     # Verify format is YYYY-MM-DD on a non-null sample
-    sample = df["contribution_date"].dropna().iloc[0]
+    sample = parsed["contribution_date"].dropna().iloc[0]
     assert len(sample) == 10, f"Expected YYYY-MM-DD format, got: {sample}"
     assert sample[4] == "-" and sample[7] == "-", (
         f"Expected YYYY-MM-DD format, got: {sample}"
